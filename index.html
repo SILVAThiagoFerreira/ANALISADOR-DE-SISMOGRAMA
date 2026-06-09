@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analisador de Sismograma - Waveform</title>
+  <meta name="description" content="Analisador local de waveform para pressão acústica e vibrações por intervalo." />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <header class="topbar">
+      <a class="brand-block" href="/" aria-label="Página inicial">
+        <img src="assets/enaex-brasil.png" alt="Enaex Brasil" />
+        <span>Analisador de Sismograma</span>
+      </a>
+
+      <div class="topbar-center" aria-hidden="true">
+        <span>Waveform</span>
+        <span>Intervalos</span>
+        <span>Relatório</span>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="status-pill" id="statusPill">Aguardando arquivo</span>
+        <button class="pdf-button" type="button" id="exportPdfBtn">Exportar PDF</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="control-panel" aria-label="Controles de análise">
+        <section class="control-section file-section">
+          <div class="section-title">
+            <span>01</span>
+            <div>
+              <h2>Entrada</h2>
+              <p>CSV full waveform</p>
+            </div>
+          </div>
+
+          <label class="dropzone" for="csvFile" id="dropzone">
+            <input type="file" id="csvFile" accept=".csv,text/csv" />
+            <span class="drop-icon">CSV</span>
+            <strong>Selecionar arquivo</strong>
+            <small>Arraste ou importe o sismograma</small>
+          </label>
+
+          <button class="secondary-button" type="button" id="loadSampleBtn">Carregar exemplo</button>
+        </section>
+
+        <section class="control-section file-section">
+          <div class="section-title">
+            <span>01B</span>
+            <div>
+              <h2>Historial DRB</h2>
+              <p>Eventos fire automaticamente reconhecidos</p>
+            </div>
+          </div>
+
+          <label class="dropzone drb-dropzone" for="drbFile" id="drbDropzone">
+            <input type="file" id="drbFile" accept=".txt,text/plain" />
+            <span class="drop-icon">TXT</span>
+            <strong>Selecionar historial</strong>
+            <small>Carregue o arquivo da DRB com os eventos Fire</small>
+          </label>
+
+          <button class="secondary-button" type="button" id="clearHistoryBtn">Limpar historial</button>
+        </section>
+
+        <section class="control-section interval-section">
+          <div class="section-title">
+            <span>02</span>
+            <div>
+              <h2>Intervalos</h2>
+              <p>Trechos para comparação</p>
+            </div>
+          </div>
+
+          <label class="field full">
+            <span>Nome</span>
+            <input type="text" id="intervalName" placeholder="ex.: Desmonte principal" />
+          </label>
+
+          <div class="interval-grid">
+            <label class="field">
+              <span>Início</span>
+              <input type="text" id="startTime" placeholder="224,50" inputmode="decimal" />
+            </label>
+            <label class="field">
+              <span>Final</span>
+              <input type="text" id="endTime" placeholder="245,00" inputmode="decimal" />
+            </label>
+          </div>
+
+          <div class="button-row">
+            <button class="primary-button" type="button" id="applyIntervalBtn">Aplicar</button>
+            <button class="ghost-button" type="button" id="clearIntervalBtn">Limpar</button>
+          </div>
+
+          <button class="outline-button" type="button" id="clearAllIntervalsBtn">Remover intervalos</button>
+
+          <label class="check-row">
+            <input type="checkbox" id="focusInterval" />
+            <span>Focar nos intervalos</span>
+          </label>
+
+          <p class="hint" id="intervalHint">Importe um arquivo para iniciar.</p>
+
+          <div class="intervals-list" id="intervalsList">
+            <p class="empty-list">Nenhum intervalo adicionado.</p>
+          </div>
+        </section>
+
+        <section class="control-section metadata-card">
+          <div class="section-title">
+            <span>03</span>
+            <div>
+              <h2>Registro</h2>
+              <p>Metadados extraídos</p>
+            </div>
+          </div>
+
+          <dl id="metadataList" class="metadata-list">
+            <div><dt>Arquivo</dt><dd>Não carregado</dd></div>
+            <div><dt>Amostragem</dt><dd>--</dd></div>
+            <div><dt>Duração</dt><dd>--</dd></div>
+            <div><dt>Canais</dt><dd>--</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-label="Área de análise">
+        <section class="workspace-hero">
+          <div>
+            <p class="eyebrow">Sismografia operacional</p>
+            <h1>Pressão acústica e vibração por intervalo</h1>
+          </div>
+          <p>Visão técnica consolidada para leitura rápida de evento, equipamento, amostragem e picos por trecho.</p>
+        </section>
+
+        <section class="kpi-grid" id="kpiGrid" aria-label="Resumo do registro">
+          <article class="kpi-card primary">
+            <span>Local</span>
+            <strong id="micPeak">--</strong>
+            <small id="micPeakDetails">Comunidade / ponto de monitoramento</small>
+          </article>
+          <article class="kpi-card">
+            <span>Data</span>
+            <strong id="tranPeak">--</strong>
+            <small id="tranPeakDetails">Evento do sismograma</small>
+          </article>
+          <article class="kpi-card">
+            <span>Equipamento</span>
+            <strong id="vertPeak">--</strong>
+            <small id="vertPeakDetails">Número de série</small>
+          </article>
+          <article class="kpi-card">
+            <span>Amostragem</span>
+            <strong id="longPeak">--</strong>
+            <small id="longPeakDetails">Taxa de aquisição</small>
+          </article>
+          <article class="kpi-card">
+            <span>Duração</span>
+            <strong id="pvsPeak">--</strong>
+            <small id="pvsPeakDetails">Tempo total do registro</small>
+          </article>
+        </section>
+
+        <section class="summary-panel" id="intervalSummarySection">
+          <div class="summary-header">
+            <div>
+              <p class="eyebrow">Resumo</p>
+              <h2>Intervalos analisados</h2>
+            </div>
+          </div>
+          <div class="summary-table-wrap">
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>Intervalo</th>
+                  <th>Início</th>
+                  <th>Final</th>
+                  <th>Pressão</th>
+                  <th>PVS</th>
+                </tr>
+              </thead>
+              <tbody id="intervalSummaryBody">
+                <tr><td colspan="5">Nenhum intervalo marcado.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="chart-stack" aria-label="Gráficos do waveform">
+          <article class="chart-card feature">
+            <div class="chart-title-row">
+              <div>
+                <p class="eyebrow">Canal 01</p>
+                <h3>Pressão acústica</h3>
+              </div>
+              <span>Mic/MicL · Pa e dB</span>
+            </div>
+            <div class="chart-interval-tags" id="micIntervalTags" aria-hidden="true"></div>
+            <div class="canvas-wrap large">
+              <canvas id="micChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title-row">
+              <div>
+                <p class="eyebrow">Canal 02</p>
+                <h3>Vibração transversal</h3>
+              </div>
+              <span>Tran · mm/s</span>
+            </div>
+            <div class="chart-interval-tags" id="tranIntervalTags" aria-hidden="true"></div>
+            <div class="canvas-wrap">
+              <canvas id="tranChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title-row">
+              <div>
+                <p class="eyebrow">Canal 03</p>
+                <h3>Vibração vertical</h3>
+              </div>
+              <span>Vert · mm/s</span>
+            </div>
+            <div class="chart-interval-tags" id="vertIntervalTags" aria-hidden="true"></div>
+            <div class="canvas-wrap">
+              <canvas id="vertChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title-row">
+              <div>
+                <p class="eyebrow">Canal 04</p>
+                <h3>Vibração longitudinal</h3>
+              </div>
+              <span>Long · mm/s</span>
+            </div>
+            <div class="chart-interval-tags" id="longIntervalTags" aria-hidden="true"></div>
+            <div class="canvas-wrap">
+              <canvas id="longChart"></canvas>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <section class="print-report" id="printReport" aria-label="Relatório PDF"></section>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <script src="assets/app.js"></script>
+</body>
+</html>
