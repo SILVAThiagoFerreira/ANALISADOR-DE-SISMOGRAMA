@@ -191,6 +191,48 @@
           </div>
         </section>
 
+        <section class="nbr-panel" id="nbrPanel" aria-label="Gráficos normativos ABNT NBR 9653">
+          <div class="summary-header">
+            <div>
+              <p class="eyebrow">ABNT NBR 9653:2018</p>
+              <h2>Gráficos normativos de conformidade</h2>
+            </div>
+            <span class="nbr-badge" id="nbrStatusSummary">Aguardando arquivo</span>
+          </div>
+
+          <div class="nbr-chart-grid">
+            <article class="chart-card nbr-card">
+              <div class="chart-title-row">
+                <div>
+                  <p class="eyebrow">Pressão sonora</p>
+                  <h3>Pressão Sonora em Eventos Sismográficos - ABNT NBR 9653:2018</h3>
+                </div>
+                <span>Limite: 134 dB(L)</span>
+              </div>
+              <div class="canvas-wrap nbr-canvas">
+                <canvas id="nbrPressureChart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card nbr-card">
+              <div class="chart-title-row">
+                <div>
+                  <p class="eyebrow">Vibração</p>
+                  <h3>Vibração em Eventos Sismográficos - ABNT NBR 9653:2018</h3>
+                </div>
+                <span>PPV x frequência</span>
+              </div>
+              <div class="canvas-wrap nbr-canvas">
+                <canvas id="nbrVibrationChart"></canvas>
+              </div>
+            </article>
+          </div>
+
+          <p class="nbr-note">
+            A distância é lida automaticamente do campo ScaledDistance do CSV. As frequências usam os campos ZCFreq do sismograma e, nos intervalos manuais/DRB, uma estimativa local por cruzamento de zero em torno do pico.
+          </p>
+        </section>
+
         <section class="chart-stack" aria-label="Gráficos do waveform">
           <article class="chart-card feature">
             <div class="chart-title-row">

@@ -55,3 +55,21 @@ A aplicação deve permitir importar um CSV full waveform extraído de sismógra
 - JavaScript puro
 - Canvas nativo
 - Sem dependências externas
+
+## Atualização obrigatória adicionada
+
+O projeto agora deve manter os gráficos normativos da **ABNT NBR 9653:2018** no site e no relatório PDF:
+
+1. Gráfico de pressão sonora:
+   - título: `Pressão Sonora em Eventos Sismográficos - ABNT NBR 9653:2018`;
+   - limite horizontal de 134 dB(L);
+   - pontos de pressão sonora calculados em dB(L);
+   - distância lida do campo `ScaledDistance` do CSV.
+2. Gráfico de vibração:
+   - título: `Vibração em Eventos Sismográficos - ABNT NBR 9653:2018`;
+   - eixo X logarítmico de frequência em Hz;
+   - eixo Y PPV em mm/s;
+   - curva limite 4 Hz/15 mm/s, 15 Hz/20 mm/s, 40 Hz/50 mm/s e 1000 Hz/50 mm/s;
+   - pontos separados para Transversal, Longitudinal e Vertical.
+3. Os dois gráficos devem entrar no PDF exportado antes dos gráficos de waveform.
+4. O projeto deve continuar 100% estático, compatível com GitHub Pages, sem dependências externas.

@@ -64,3 +64,21 @@ http://localhost:8000
    - Branch: `main`
    - Folder: `/root`
 5. Salve e aguarde o link público do Pages.
+
+## Atualização NBR 9653:2018
+
+Esta versão inclui dois gráficos normativos no site e no PDF:
+
+- **Pressão Sonora em Eventos Sismográficos - ABNT NBR 9653:2018**
+  - Eixo X: distância em metros.
+  - Eixo Y: pressão acústica em dB(L).
+  - Limite destacado: 134 dB(L).
+  - A distância é lida automaticamente do campo `ScaledDistance` do CSV, quando disponível.
+
+- **Vibração em Eventos Sismográficos - ABNT NBR 9653:2018**
+  - Eixo X: frequência em Hz, com escala logarítmica de 1 a 1000 Hz.
+  - Eixo Y: PPV em mm/s.
+  - Curva limite usada no gráfico: 4 Hz = 15 mm/s, 15 Hz = 20 mm/s, 40 Hz = 50 mm/s e 1000 Hz = 50 mm/s.
+  - Os pontos são plotados por componente: Transversal, Longitudinal e Vertical.
+
+Os mesmos gráficos entram automaticamente no relatório PDF, antes dos gráficos de waveform.

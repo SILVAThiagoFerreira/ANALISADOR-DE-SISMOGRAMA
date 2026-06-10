@@ -24,6 +24,9 @@ const els = {
   printReport: document.getElementById('printReport'),
   intervalSummarySection: document.getElementById('intervalSummarySection'),
   intervalSummaryBody: document.getElementById('intervalSummaryBody'),
+  nbrStatusSummary: document.getElementById('nbrStatusSummary'),
+  nbrPressureChart: document.getElementById('nbrPressureChart'),
+  nbrVibrationChart: document.getElementById('nbrVibrationChart'),
   micPeak: document.getElementById('micPeak'),
   micPeakDetails: document.getElementById('micPeakDetails'),
   tranPeak: document.getElementById('tranPeak'),
@@ -51,7 +54,12 @@ const colors = {
   tran: '#365f91',
   vert: '#4f7f68',
   long: '#9a6a2f',
-  zero: '#98a2b3'
+  zero: '#98a2b3',
+  nbrLine: '#30343a',
+  nbrGuide: '#e30613',
+  nbrTran: '#e30613',
+  nbrLong: '#1d4ed8',
+  nbrVert: '#16a34a'
 };
 
 const intervalPalette = [
@@ -933,6 +941,577 @@ function setupCanvas(canvas) {
   return { ctx, width: rect.width, height: rect.height };
 }
 
+
+function parseDistanceMeters(metadata) {
+  const candidates = [
+    getMetadataValue(metadata, 'ScaledDistance'),
+    getMetadataValue(metadata, 'Distance'),
+    getMetadataValue(metadata, 'Distancia'),
+    getMetadataValue(metadata, 'Distância'),
+    getMetadataValue(metadata, 'LocationDistance')
+  ].filter(Boolean);
+
+  for (const raw of candidates) {
+    const text = String(raw);
+    const insideParentheses = text.match(/\(([\d.,]+)\s*m\b/i);
+    if (insideParentheses) {
+      const value = parseNumber(insideParentheses[1]);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+
+    const distanceWithUnit = text.match(/([\d.,]+)\s*m\b/i);
+    if (distanceWithUnit) {
+      const value = parseNumber(distanceWithUnit[1]);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+  }
+
+  return NaN;
+}
+
+function getDistanceMeters() {
+  if (!state.data) return NaN;
+  return parseDistanceMeters(state.data.metadata || {});
+}
+
+function metadataFrequency(channel) {
+  if (!state.data) return NaN;
+  const keyMap = {
+    tran: 'TranZCFreq',
+    vert: 'VertZCFreq',
+    long: 'LongZCFreq'
+  };
+  return parseNumber(getMetadataValue(state.data.metadata, keyMap[channel]));
+}
+
+function estimateZeroCrossingFrequency(channel, peak, interval) {
+  if (!state.data?.data?.[channel]) return NaN;
+
+  const arr = state.data.data[channel];
+  const time = state.data.data.time;
+  const sr = Math.max(1, state.data.sampleRate || 1024);
+  const peakIndex = Number.isFinite(peak?.index)
+    ? peak.index
+    : indexForTime(Number.isFinite(peak?.time) ? peak.time : 0);
+
+  const intervalStart = Number.isFinite(interval?.i0) ? interval.i0 : 0;
+  const intervalEnd = Number.isFinite(interval?.i1) ? interval.i1 : arr.length - 1;
+  const halfWindow = Math.max(16, Math.round(sr * 0.35));
+  const start = Math.max(0, intervalStart, peakIndex - halfWindow);
+  const end = Math.min(arr.length - 1, intervalEnd, peakIndex + halfWindow);
+
+  if (end - start < 8) return metadataFrequency(channel);
+
+  const crossings = [];
+  for (let i = start + 1; i <= end; i++) {
+    const a = arr[i - 1];
+    const b = arr[i];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+
+    if (a === 0) {
+      crossings.push(time[i - 1]);
+      continue;
+    }
+
+    if ((a < 0 && b > 0) || (a > 0 && b < 0) || b === 0) {
+      const t0 = time[i - 1];
+      const t1 = time[i];
+      const ratio = Math.abs(a) / Math.max(Math.abs(a) + Math.abs(b), 0.000001);
+      crossings.push(t0 + (t1 - t0) * ratio);
+    }
+  }
+
+  if (crossings.length >= 3) {
+    const first = crossings[0];
+    const last = crossings[crossings.length - 1];
+    const duration = last - first;
+    const halfCycles = crossings.length - 1;
+    const freq = halfCycles / (2 * Math.max(duration, 0.000001));
+    if (Number.isFinite(freq) && freq > 0.1 && freq <= 1000) return freq;
+  }
+
+  return metadataFrequency(channel);
+}
+
+function nbrVibrationLimit(freq) {
+  const f = Number(freq);
+  if (!Number.isFinite(f) || f <= 0) return NaN;
+  if (f <= 4) return 15;
+  if (f <= 15) return 15 + ((f - 4) / 11) * 5;
+  if (f <= 40) return 20 + ((f - 15) / 25) * 30;
+  return 50;
+}
+
+function getNBRIntervals() {
+  if (!state.data) return [];
+  if (state.intervals.length) return state.intervals;
+
+  return [{
+    id: 'full-record-nbr',
+    name: 'Registro completo',
+    start: 0,
+    end: state.data.duration || 0,
+    i0: 0,
+    i1: state.data.data.time.length - 1,
+    color: '#161616',
+    stats: state.activeStats || calculateFullStats(),
+    source: 'full'
+  }];
+}
+
+function getNBRComplianceRows() {
+  if (!state.data) return [];
+
+  const distance = getDistanceMeters();
+  const channels = [
+    { key: 'tran', label: 'Transversal', unit: 'mm/s', color: colors.nbrTran, shape: 'square' },
+    { key: 'long', label: 'Longitudinal', unit: 'mm/s', color: colors.nbrLong, shape: 'diamond' },
+    { key: 'vert', label: 'Vertical', unit: 'mm/s', color: colors.nbrVert, shape: 'triangle' }
+  ];
+
+  return getNBRIntervals().map((interval, intervalIndex) => {
+    const stats = interval.stats || calculateFullStats();
+    const pressurePa = stats?.mic?.abs ?? NaN;
+    const pressureDb = paToDb(pressurePa);
+
+    return {
+      interval,
+      intervalIndex,
+      distance,
+      pressurePa,
+      pressureDb,
+      pressureCompliant: Number.isFinite(pressureDb) ? pressureDb <= 134 : null,
+      channels: channels.map(channel => {
+        const peak = stats?.[channel.key] || {};
+        const ppv = peak.abs ?? NaN;
+        const officialFreq = metadataFrequency(channel.key);
+        const freq = interval.source === 'full' && Number.isFinite(officialFreq)
+          ? officialFreq
+          : estimateZeroCrossingFrequency(channel.key, peak, interval);
+        const limit = nbrVibrationLimit(freq);
+        return {
+          ...channel,
+          ppv,
+          freq,
+          limit,
+          compliant: Number.isFinite(ppv) && Number.isFinite(limit) ? ppv <= limit : null
+        };
+      })
+    };
+  });
+}
+
+function updateNBRStatus() {
+  if (!els.nbrStatusSummary) return;
+
+  if (!state.data) {
+    els.nbrStatusSummary.textContent = 'Aguardando arquivo';
+    els.nbrStatusSummary.className = 'nbr-badge';
+    return;
+  }
+
+  const rows = getNBRComplianceRows();
+  const allChecks = rows.flatMap(row => [row.pressureCompliant, ...row.channels.map(c => c.compliant)])
+    .filter(value => value !== null);
+  const hasDistance = Number.isFinite(getDistanceMeters());
+  const nonCompliant = allChecks.some(value => value === false);
+
+  els.nbrStatusSummary.className = `nbr-badge ${nonCompliant ? 'alert' : 'ok'}`;
+  if (!hasDistance) {
+    els.nbrStatusSummary.textContent = nonCompliant
+      ? 'Atenção: distância ausente'
+      : 'Distância ausente no CSV';
+    return;
+  }
+
+  els.nbrStatusSummary.textContent = nonCompliant
+    ? 'Ponto acima do limite'
+    : 'Pontos abaixo dos limites';
+}
+
+function drawCanvasMessage(canvas, message) {
+  const { ctx, width, height } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = colors.text;
+  ctx.font = '650 13px Aptos, Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(message, width / 2, height / 2);
+}
+
+function drawNBRPoint(ctx, x, y, color, shape = 'circle', size = 4.5) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+
+  if (shape === 'square') {
+    ctx.rect(x - size, y - size, size * 2, size * 2);
+  } else if (shape === 'diamond') {
+    ctx.moveTo(x, y - size - 1);
+    ctx.lineTo(x + size + 1, y);
+    ctx.lineTo(x, y + size + 1);
+    ctx.lineTo(x - size - 1, y);
+    ctx.closePath();
+  } else if (shape === 'triangle') {
+    ctx.moveTo(x, y - size - 1);
+    ctx.lineTo(x + size + 1, y + size);
+    ctx.lineTo(x - size - 1, y + size);
+    ctx.closePath();
+  } else {
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+  }
+
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNBRPressureChart(canvas) {
+  if (!canvas) return;
+  if (!state.data) {
+    drawCanvasMessage(canvas, 'Importe um CSV para gerar o gráfico de pressão sonora da NBR 9653.');
+    return;
+  }
+
+  const rows = getNBRComplianceRows();
+  const distance = getDistanceMeters();
+  const { ctx, width, height } = setupCanvas(canvas);
+  const margin = { left: 72, right: 112, top: 34, bottom: 54 };
+  const plotW = Math.max(1, width - margin.left - margin.right);
+  const plotH = Math.max(1, height - margin.top - margin.bottom);
+  const maxDistance = Number.isFinite(distance) ? Math.max(6000, Math.ceil(distance / 1000) * 1000) : 6000;
+  const yMin = 0;
+  const yMax = 160;
+
+  const xScale = value => margin.left + (value / maxDistance) * plotW;
+  const yScale = value => margin.top + (1 - (value - yMin) / (yMax - yMin)) * plotH;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.strokeStyle = '#8f949a';
+  ctx.lineWidth = 1;
+  ctx.font = '11px Aptos, Segoe UI, sans-serif';
+  ctx.fillStyle = '#6f7378';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let y = 0; y <= 160; y += 20) {
+    const py = yScale(y);
+    ctx.beginPath();
+    ctx.moveTo(margin.left, py);
+    ctx.lineTo(margin.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(String(y), margin.left - 10, py);
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = maxDistance <= 6000 ? 1000 : Math.ceil(maxDistance / 6 / 1000) * 1000;
+  for (let x = 0; x <= maxDistance; x += xStep) {
+    const px = xScale(x);
+    ctx.beginPath();
+    ctx.moveTo(px, margin.top);
+    ctx.lineTo(px, margin.top + plotH);
+    ctx.stroke();
+    ctx.fillText(x.toLocaleString('pt-BR'), px, margin.top + plotH + 12);
+  }
+
+  const limitY = yScale(134);
+  ctx.strokeStyle = colors.nbrLine;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, limitY);
+  ctx.lineTo(margin.left + plotW, limitY);
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#1f2328';
+  ctx.lineWidth = 1;
+  ctx.fillRect(margin.left - 30, limitY - 8, 24, 16);
+  ctx.strokeRect(margin.left - 30, limitY - 8, 24, 16);
+  ctx.fillRect(margin.left + plotW + 6, limitY - 8, 28, 16);
+  ctx.strokeRect(margin.left + plotW + 6, limitY - 8, 28, 16);
+  ctx.fillStyle = '#30343a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('134', margin.left - 18, limitY);
+  ctx.fillText('134', margin.left + plotW + 20, limitY);
+
+  if (Number.isFinite(distance)) {
+    rows.forEach((row, index) => {
+      if (!Number.isFinite(row.pressureDb)) return;
+      const jitter = rows.length > 1 ? (index - (rows.length - 1) / 2) * Math.min(36, plotW * 0.008) : 0;
+      const px = Math.max(margin.left, Math.min(margin.left + plotW, xScale(distance) + jitter));
+      const py = yScale(Math.max(yMin, Math.min(yMax, row.pressureDb)));
+      drawNBRPoint(ctx, px, py, colors.peak, 'circle', 4.4);
+      ctx.fillStyle = '#6f7378';
+      ctx.font = '10px Aptos, Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(fmt(row.pressureDb, 1), px, py - 7);
+    });
+  } else {
+    ctx.fillStyle = '#6f7378';
+    ctx.font = '650 12px Aptos, Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Distância não encontrada no campo ScaledDistance do CSV.', margin.left + plotW / 2, margin.top + plotH / 2);
+  }
+
+  ctx.strokeStyle = '#8f949a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+  ctx.fillStyle = '#6f7378';
+  ctx.font = '11px Aptos, Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Distância (m)', margin.left + plotW / 2, height - 10);
+
+  ctx.save();
+  ctx.translate(15, margin.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('Pressão Acústica (dB)', 0, 0);
+  ctx.restore();
+
+  const legendX = margin.left + plotW + 24;
+  const legendY = margin.top + plotH * 0.46;
+  ctx.strokeStyle = colors.nbrLine;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(legendX, legendY);
+  ctx.lineTo(legendX + 30, legendY);
+  ctx.stroke();
+  ctx.fillStyle = '#6f7378';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Limite de 134 dB', legendX + 36, legendY);
+  drawNBRPoint(ctx, legendX + 15, legendY + 30, colors.peak, 'circle', 4.4);
+  ctx.fillText('Pressão Sonora (dB)', legendX + 36, legendY + 30);
+  ctx.restore();
+}
+
+function log10(value) {
+  return Math.log(value) / Math.LN10;
+}
+
+function drawNBRVibrationChart(canvas) {
+  if (!canvas) return;
+  if (!state.data) {
+    drawCanvasMessage(canvas, 'Importe um CSV para gerar o gráfico de vibração da NBR 9653.');
+    return;
+  }
+
+  const rows = getNBRComplianceRows();
+  const points = rows.flatMap((row, intervalIndex) => row.channels.map(channel => ({
+    ...channel,
+    intervalName: row.interval.name,
+    intervalIndex
+  })));
+
+  const { ctx, width, height } = setupCanvas(canvas);
+  const margin = { left: 68, right: 136, top: 34, bottom: 54 };
+  const plotW = Math.max(1, width - margin.left - margin.right);
+  const plotH = Math.max(1, height - margin.top - margin.bottom);
+  const xMin = 1;
+  const xMax = 1000;
+  const yMin = 0;
+  const yMax = 60;
+  const xScale = value => margin.left + ((log10(Math.max(xMin, Math.min(xMax, value))) - log10(xMin)) / (log10(xMax) - log10(xMin))) * plotW;
+  const yScale = value => margin.top + (1 - (value - yMin) / (yMax - yMin)) * plotH;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.strokeStyle = '#8f949a';
+  ctx.lineWidth = 1;
+  ctx.font = '11px Aptos, Segoe UI, sans-serif';
+  ctx.fillStyle = '#6f7378';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let y = 0; y <= 60; y += 10) {
+    const py = yScale(y);
+    ctx.beginPath();
+    ctx.moveTo(margin.left, py);
+    ctx.lineTo(margin.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(String(y), margin.left - 10, py);
+  }
+
+  const majorTicks = [1, 10, 100, 1000];
+  const minorTicks = [];
+  for (const decade of [1, 10, 100]) {
+    for (let m = 2; m <= 9; m++) minorTicks.push(m * decade);
+  }
+
+  ctx.strokeStyle = '#c0c3c7';
+  minorTicks.forEach(value => {
+    const px = xScale(value);
+    ctx.beginPath();
+    ctx.moveTo(px, margin.top);
+    ctx.lineTo(px, margin.top + plotH);
+    ctx.stroke();
+  });
+
+  ctx.strokeStyle = '#8f949a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  majorTicks.forEach(value => {
+    const px = xScale(value);
+    ctx.beginPath();
+    ctx.moveTo(px, margin.top);
+    ctx.lineTo(px, margin.top + plotH);
+    ctx.stroke();
+    ctx.fillText(String(value), px, margin.top + plotH + 12);
+  });
+
+  ctx.strokeStyle = colors.nbrGuide;
+  ctx.fillStyle = colors.nbrGuide;
+  ctx.setLineDash([7, 6]);
+  ctx.lineWidth = 1.3;
+  [
+    { y: 15, x0: 1, x1: 4 },
+    { y: 20, x0: 1, x1: 15 },
+    { y: 50, x0: 1, x1: 40 },
+    { x: 4, y0: 0, y1: 15 },
+    { x: 15, y0: 0, y1: 20 },
+    { x: 40, y0: 0, y1: 50 }
+  ].forEach(item => {
+    ctx.beginPath();
+    if (item.y !== undefined) {
+      ctx.moveTo(xScale(item.x0), yScale(item.y));
+      ctx.lineTo(xScale(item.x1), yScale(item.y));
+    } else {
+      ctx.moveTo(xScale(item.x), yScale(item.y0));
+      ctx.lineTo(xScale(item.x), yScale(item.y1));
+    }
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.font = '700 10px Aptos, Segoe UI, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('15', margin.left - 12, yScale(15));
+  ctx.fillText('4', xScale(4), margin.top + plotH + 27);
+  ctx.fillText('15', xScale(15), margin.top + plotH + 27);
+  ctx.fillText('40', xScale(40), margin.top + plotH + 27);
+
+  const limitCurve = [
+    [4, 15],
+    [15, 20],
+    [40, 50],
+    [1000, 50]
+  ];
+  ctx.strokeStyle = colors.nbrLine;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  limitCurve.forEach(([x, y], index) => {
+    const px = xScale(x);
+    const py = yScale(y);
+    if (index === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  points.forEach((point, pointIndex) => {
+    if (!Number.isFinite(point.freq) || !Number.isFinite(point.ppv)) return;
+    const xJitter = points.length > 3 ? ((pointIndex % 3) - 1) * 3 : 0;
+    const px = xScale(point.freq) + xJitter;
+    const py = yScale(Math.max(yMin, Math.min(yMax, point.ppv)));
+    drawNBRPoint(ctx, px, py, point.color, point.shape, 4.5);
+  });
+
+  ctx.strokeStyle = '#8f949a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+  ctx.fillStyle = '#6f7378';
+  ctx.font = '11px Aptos, Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Frequência (Hz)', margin.left + plotW / 2, height - 10);
+
+  ctx.save();
+  ctx.translate(15, margin.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('PPV (mm/s)', 0, 0);
+  ctx.restore();
+
+  const legendX = margin.left + plotW + 26;
+  const legendY = margin.top + plotH * 0.45;
+  const legend = [
+    { label: 'Transversal (mm/s)', color: colors.nbrTran, shape: 'square' },
+    { label: 'Longitudinal (mm/s)', color: colors.nbrLong, shape: 'diamond' },
+    { label: 'Vertical (mm/s)', color: colors.nbrVert, shape: 'triangle' }
+  ];
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '11px Aptos, Segoe UI, sans-serif';
+  legend.forEach((item, index) => {
+    const y = legendY + index * 28;
+    drawNBRPoint(ctx, legendX, y, item.color, item.shape, 4.2);
+    ctx.fillStyle = '#6f7378';
+    ctx.fillText(item.label, legendX + 16, y);
+  });
+
+  ctx.restore();
+}
+
+function renderNBRCharts() {
+  updateNBRStatus();
+  drawNBRPressureChart(els.nbrPressureChart);
+  drawNBRVibrationChart(els.nbrVibrationChart);
+}
+
+function buildNBRReportRows() {
+  const rows = getNBRComplianceRows();
+  return rows.flatMap(row => {
+    const pressureStatus = row.pressureCompliant === null
+      ? 'Não calculado'
+      : row.pressureCompliant ? 'Conforme' : 'Acima do limite';
+
+    const vibrationRows = row.channels.map(channel => {
+      const status = channel.compliant === null
+        ? 'Não calculado'
+        : channel.compliant ? 'Conforme' : 'Acima do limite';
+      return `
+        <tr>
+          <td>${escapeHtml(row.interval.name)}</td>
+          <td>${escapeHtml(channel.label)}</td>
+          <td>${fmt(channel.freq, 1)} Hz</td>
+          <td>${fmt(channel.ppv, 3)} mm/s</td>
+          <td>${fmt(channel.limit, 1)} mm/s</td>
+          <td>${escapeHtml(status)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const pressureRow = `
+      <tr>
+        <td>${escapeHtml(row.interval.name)}</td>
+        <td>Pressão sonora</td>
+        <td>${Number.isFinite(row.distance) ? `${fmt(row.distance, 1)} m` : 'Distância ausente'}</td>
+        <td>${fmt(row.pressureDb, 1)} dB(L)</td>
+        <td>134,0 dB(L)</td>
+        <td>${escapeHtml(pressureStatus)}</td>
+      </tr>
+    `;
+
+    return pressureRow + vibrationRows;
+  }).join('');
+}
+
 function getViewConfig(series, peak) {
   let viewStart = 0;
   let viewEnd = state.data?.duration || 1;
@@ -1215,6 +1794,8 @@ function render() {
       null
     )
   });
+
+  renderNBRCharts();
 }
 
 async function loadTextAsCSV(text, fileName) {
@@ -1343,11 +1924,15 @@ function buildReportHTML() {
     ['Eventos DRB', state.fireHistory?.entries?.length ? state.fireHistory.entries.length.toLocaleString('pt-BR') : '0']
   ];
 
+  renderNBRCharts();
+
   const chartImages = {
     mic: els.micChart.toDataURL('image/png'),
     tran: els.tranChart.toDataURL('image/png'),
     vert: els.vertChart.toDataURL('image/png'),
-    long: els.longChart.toDataURL('image/png')
+    long: els.longChart.toDataURL('image/png'),
+    nbrPressure: els.nbrPressureChart?.toDataURL('image/png') || '',
+    nbrVibration: els.nbrVibrationChart?.toDataURL('image/png') || ''
   };
 
   const metaTable = metaRows.map(([key, value]) => `
@@ -1356,6 +1941,8 @@ function buildReportHTML() {
       <td>${escapeHtml(value)}</td>
     </tr>
   `).join('');
+
+  const nbrReportRows = buildNBRReportRows();
 
   const intervalRows = rows.map(interval => {
     const s = interval.stats;
@@ -1415,6 +2002,33 @@ function buildReportHTML() {
           </tr>
         </thead>
         <tbody>${intervalRows}</tbody>
+      </table>
+    </div>
+
+    <div class="report-page">
+      <h2 class="report-section-title">Gráficos normativos - ABNT NBR 9653:2018</h2>
+      <div class="report-nbr-grid">
+        <div class="report-chart">
+          <h3>Pressão Sonora em Eventos Sismográficos</h3>
+          <img src="${chartImages.nbrPressure}" alt="Gráfico de pressão sonora ABNT NBR 9653" />
+        </div>
+        <div class="report-chart">
+          <h3>Vibração em Eventos Sismográficos</h3>
+          <img src="${chartImages.nbrVibration}" alt="Gráfico de vibração ABNT NBR 9653" />
+        </div>
+      </div>
+      <table class="report-table report-nbr-table">
+        <thead>
+          <tr>
+            <th>Intervalo</th>
+            <th>Indicador</th>
+            <th>Frequência/Distância</th>
+            <th>Valor medido</th>
+            <th>Limite</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${nbrReportRows}</tbody>
       </table>
     </div>
 
