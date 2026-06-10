@@ -716,6 +716,72 @@ h1 {
   line-height: 1.45;
 }
 
+.nbr-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(17, 17, 17, .02), rgba(17, 17, 17, 0)), var(--surface-alt);
+}
+
+.nbr-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nbr-legend-item span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nbr-legend-swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.nbr-legend-line {
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--ink);
+}
+
+.nbr-legend-point {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, .95);
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, .08);
+}
+
+.nbr-legend-square {
+  width: 9px;
+  height: 9px;
+  background: var(--red);
+}
+
+.nbr-legend-diamond {
+  width: 9px;
+  height: 9px;
+  background: var(--blue);
+  transform: rotate(45deg);
+}
+
+.nbr-legend-triangle {
+  width: 10px;
+  height: 10px;
+  background: var(--green);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
 .chart-stack {
   display: grid;
   gap: 16px;
@@ -1127,6 +1193,87 @@ canvas {
 
   .report-nbr-grid .report-chart {
     margin-bottom: 0;
+  }
+
+  .report-nbr-legend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4mm 6mm;
+    margin: 0 0 6mm;
+    padding: 4mm 5mm;
+    border: 1px solid #ddd6ce;
+    background: #faf7f4;
+    page-break-inside: avoid;
+  }
+
+  .report-nbr-legend-card {
+    display: grid;
+    gap: 2.5mm;
+    page-break-inside: avoid;
+  }
+
+  .report-nbr-legend-card h3 {
+    margin: 0;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: #5f5f5f;
+  }
+
+  .report-nbr-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(48mm, 1fr));
+    gap: 2mm 4mm;
+  }
+
+  .report-nbr-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2mm;
+    min-width: 0;
+    color: #5f5f5f;
+    font-size: 8px;
+    line-height: 1.2;
+  }
+
+  .report-nbr-legend-swatch {
+    flex: 0 0 auto;
+    display: inline-block;
+  }
+
+  .report-nbr-legend-line {
+    width: 7mm;
+    height: 0;
+    border-top: 1.5px solid #161616;
+  }
+
+  .report-nbr-legend-point {
+    width: 2.3mm;
+    height: 2.3mm;
+    border: 0.3mm solid #ffffff;
+    border-radius: 50%;
+    background: #e30613;
+    box-shadow: 0 0 0 0.2mm rgba(17, 17, 17, .12);
+  }
+
+  .report-nbr-legend-square {
+    width: 2.3mm;
+    height: 2.3mm;
+    background: #e30613;
+  }
+
+  .report-nbr-legend-diamond {
+    width: 2.3mm;
+    height: 2.3mm;
+    background: #1f5a95;
+    transform: rotate(45deg);
+  }
+
+  .report-nbr-legend-triangle {
+    width: 2.6mm;
+    height: 2.6mm;
+    background: #3f7d5a;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
   }
 
   .report-nbr-table {

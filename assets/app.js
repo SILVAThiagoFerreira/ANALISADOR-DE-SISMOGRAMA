@@ -1180,7 +1180,7 @@ function drawNBRPressureChart(canvas) {
   const rows = getNBRComplianceRows();
   const distance = getDistanceMeters();
   const { ctx, width, height } = setupCanvas(canvas);
-  const margin = { left: 72, right: 112, top: 34, bottom: 54 };
+  const margin = { left: 72, right: 52, top: 34, bottom: 54 };
   const plotW = Math.max(1, width - margin.left - margin.right);
   const plotH = Math.max(1, height - margin.top - margin.bottom);
   const maxDistance = Number.isFinite(distance) ? Math.max(6000, Math.ceil(distance / 1000) * 1000) : 6000;
@@ -1253,9 +1253,18 @@ function drawNBRPressureChart(canvas) {
       drawNBRPoint(ctx, px, py, colors.peak, 'circle', 4.4);
       ctx.fillStyle = '#6f7378';
       ctx.font = '10px Aptos, Segoe UI, sans-serif';
-      ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(fmt(row.pressureDb, 1), px, py - 7);
+      const label = fmt(row.pressureDb, 1);
+      if (px > margin.left + plotW - 46) {
+        ctx.textAlign = 'right';
+        ctx.fillText(label, px - 7, py - 7);
+      } else if (px < margin.left + 46) {
+        ctx.textAlign = 'left';
+        ctx.fillText(label, px + 7, py - 7);
+      } else {
+        ctx.textAlign = 'center';
+        ctx.fillText(label, px, py - 7);
+      }
     });
   } else {
     ctx.fillStyle = '#6f7378';
@@ -1280,22 +1289,6 @@ function drawNBRPressureChart(canvas) {
   ctx.textAlign = 'center';
   ctx.fillText('Pressão Acústica (dB)', 0, 0);
   ctx.restore();
-
-  const legendX = margin.left + plotW + 24;
-  const legendY = margin.top + plotH * 0.46;
-  ctx.strokeStyle = colors.nbrLine;
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(legendX, legendY);
-  ctx.lineTo(legendX + 30, legendY);
-  ctx.stroke();
-  ctx.fillStyle = '#6f7378';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('Limite de 134 dB', legendX + 36, legendY);
-  drawNBRPoint(ctx, legendX + 15, legendY + 30, colors.peak, 'circle', 4.4);
-  ctx.fillText('Pressão Sonora (dB)', legendX + 36, legendY + 30);
-  ctx.restore();
 }
 
 function log10(value) {
@@ -1317,7 +1310,7 @@ function drawNBRVibrationChart(canvas) {
   })));
 
   const { ctx, width, height } = setupCanvas(canvas);
-  const margin = { left: 68, right: 136, top: 34, bottom: 54 };
+  const margin = { left: 68, right: 48, top: 34, bottom: 54 };
   const plotW = Math.max(1, width - margin.left - margin.right);
   const plotH = Math.max(1, height - margin.top - margin.bottom);
   const xMin = 1;
@@ -1446,25 +1439,6 @@ function drawNBRVibrationChart(canvas) {
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
   ctx.fillText('PPV (mm/s)', 0, 0);
-  ctx.restore();
-
-  const legendX = margin.left + plotW + 26;
-  const legendY = margin.top + plotH * 0.45;
-  const legend = [
-    { label: 'Transversal (mm/s)', color: colors.nbrTran, shape: 'square' },
-    { label: 'Longitudinal (mm/s)', color: colors.nbrLong, shape: 'diamond' },
-    { label: 'Vertical (mm/s)', color: colors.nbrVert, shape: 'triangle' }
-  ];
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.font = '11px Aptos, Segoe UI, sans-serif';
-  legend.forEach((item, index) => {
-    const y = legendY + index * 28;
-    drawNBRPoint(ctx, legendX, y, item.color, item.shape, 4.2);
-    ctx.fillStyle = '#6f7378';
-    ctx.fillText(item.label, legendX + 16, y);
-  });
-
   ctx.restore();
 }
 
@@ -2015,6 +1989,42 @@ function buildReportHTML() {
         <div class="report-chart">
           <h3>Vibração em Eventos Sismográficos</h3>
           <img src="${chartImages.nbrVibration}" alt="Gráfico de vibração ABNT NBR 9653" />
+        </div>
+      </div>
+      <div class="report-nbr-legend-grid">
+        <div class="report-nbr-legend-card">
+          <h3>Pressão sonora</h3>
+          <div class="report-nbr-legend-list">
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-line"></span>
+              <span>Limite 134 dB(L)</span>
+            </div>
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-point"></span>
+              <span>Pico medido</span>
+            </div>
+          </div>
+        </div>
+        <div class="report-nbr-legend-card">
+          <h3>Vibração</h3>
+          <div class="report-nbr-legend-list">
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-square"></span>
+              <span>Transversal</span>
+            </div>
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-diamond"></span>
+              <span>Longitudinal</span>
+            </div>
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-triangle"></span>
+              <span>Vertical</span>
+            </div>
+            <div class="report-nbr-legend-item">
+              <span class="report-nbr-legend-swatch report-nbr-legend-line"></span>
+              <span>Curva limite</span>
+            </div>
+          </div>
         </div>
       </div>
       <table class="report-table report-nbr-table">
