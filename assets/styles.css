@@ -77,8 +77,9 @@ p {
 
 .brand-block img {
   display: block;
-  width: 112px;
-  height: auto;
+  width: auto;
+  height: 58px;
+  object-fit: contain;
 }
 
 .brand-block span {
@@ -1099,8 +1100,9 @@ canvas {
   }
 
   .report-logo {
-    width: 36mm;
-    height: auto;
+    width: auto;
+    height: 32mm;
+    object-fit: contain;
     margin-bottom: 18mm;
   }
 

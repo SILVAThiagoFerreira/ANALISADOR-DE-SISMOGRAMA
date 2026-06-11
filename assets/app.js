@@ -1937,7 +1937,7 @@ function buildReportHTML() {
 
   return `
     <div class="report-page report-cover">
-      <img class="report-logo" src="assets/enaex-brasil.png" alt="Enaex Brasil" />
+      <img class="report-logo" src="VISUAL/LOGO OPENBLAST TRANSPARENTE.png" alt="OpenBlast" />
       <p class="report-kicker">Relatório técnico de waveform</p>
       <h1 class="report-title">Analisador de Sismograma - Waveform</h1>
       <p class="report-subtitle">
