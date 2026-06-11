@@ -717,6 +717,17 @@ h1 {
   line-height: 1.45;
 }
 
+.chart-guide {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--red);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .nbr-legend {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -884,6 +895,14 @@ h1 {
 
 .canvas-wrap.large {
   height: 326px;
+}
+
+.canvas-wrap.interactive {
+  touch-action: none;
+}
+
+.canvas-wrap.interactive canvas {
+  cursor: crosshair;
 }
 
 canvas {

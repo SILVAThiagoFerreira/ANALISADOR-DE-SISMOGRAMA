@@ -80,6 +80,34 @@ const FIRE_WINDOW = {
   post: 6
 };
 
+const WAVEFORM_MARGIN = { left: 66, right: 18, top: 46, bottom: 42 };
+const INTERACTIVE_CHARTS = [
+  {
+    metric: 'mic',
+    canvas: () => els.micChart,
+    label: 'Pressão acústica',
+    unit: 'Pa'
+  },
+  {
+    metric: 'tran',
+    canvas: () => els.tranChart,
+    label: 'Vibração transversal',
+    unit: 'mm/s'
+  },
+  {
+    metric: 'vert',
+    canvas: () => els.vertChart,
+    label: 'Vibração vertical',
+    unit: 'mm/s'
+  },
+  {
+    metric: 'long',
+    canvas: () => els.longChart,
+    label: 'Vibração longitudinal',
+    unit: 'mm/s'
+  }
+];
+
 const state = {
   fileName: null,
   metadata: {},
@@ -87,7 +115,14 @@ const state = {
   fireHistory: null,
   intervals: [],
   activeStats: null,
-  activeLabel: 'Registro completo'
+  activeLabel: 'Registro completo',
+  chartSelection: {
+    active: false,
+    metric: null,
+    startTime: null,
+    hoverTime: null
+  },
+  exporting: false
 };
 
 function showToast(message) {
@@ -574,7 +609,11 @@ function buildIntervalFromInputs() {
   let end = parseTimeInput(endRaw);
 
   if (start === null) start = 0;
-  if (end === null) end = state.data.duration;
+  if (end === null) {
+    end = state.chartSelection.active && Number.isFinite(state.chartSelection.hoverTime)
+      ? state.chartSelection.hoverTime
+      : state.data.duration;
+  }
 
   if (!Number.isFinite(start) || !Number.isFinite(end)) {
     throw new Error('Use intervalos em segundos, mm:ss ou hh:mm:ss.');
@@ -614,6 +653,105 @@ function buildIntervalFromInputs() {
     stats,
     source: 'manual'
   };
+}
+
+function formatSelectionTime(value) {
+  return Number.isFinite(value)
+    ? value.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+    : '';
+}
+
+function getWaveformViewRange() {
+  let viewStart = 0;
+  let viewEnd = state.data?.duration || 1;
+
+  if (state.data && state.intervals.length && els.focusInterval.checked) {
+    const minStart = Math.min(...state.intervals.map(interval => interval.start));
+    const maxEnd = Math.max(...state.intervals.map(interval => interval.end));
+    const span = Math.max(1 / state.data.sampleRate, maxEnd - minStart);
+    const pad = Math.max(span * 0.08, 0.25);
+    viewStart = Math.max(0, minStart - pad);
+    viewEnd = Math.min(state.data.duration, maxEnd + pad);
+  }
+
+  return { viewStart, viewEnd };
+}
+
+function getWaveformChartBounds(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const { viewStart, viewEnd } = getWaveformViewRange();
+  const plotLeft = WAVEFORM_MARGIN.left;
+  const plotRight = Math.max(plotLeft + 1, rect.width - WAVEFORM_MARGIN.right);
+  const plotTop = WAVEFORM_MARGIN.top;
+  const plotBottom = Math.max(plotTop + 1, rect.height - WAVEFORM_MARGIN.bottom);
+  return {
+    rect,
+    viewStart,
+    viewEnd,
+    plotLeft,
+    plotRight,
+    plotTop,
+    plotBottom,
+    plotWidth: plotRight - plotLeft,
+    plotHeight: plotBottom - plotTop
+  };
+}
+
+function getWaveformTimeFromPointer(canvas, event) {
+  const bounds = getWaveformChartBounds(canvas);
+  const x = event.clientX - bounds.rect.left;
+  const y = event.clientY - bounds.rect.top;
+
+  if (x < bounds.plotLeft || x > bounds.plotRight || y < bounds.plotTop || y > bounds.plotBottom) {
+    return null;
+  }
+
+  const ratio = (x - bounds.plotLeft) / Math.max(0.000001, bounds.plotWidth);
+  const time = bounds.viewStart + ratio * (bounds.viewEnd - bounds.viewStart);
+  return Math.max(bounds.viewStart, Math.min(bounds.viewEnd, time));
+}
+
+function clearChartSelection(shouldRender = true) {
+  state.chartSelection.active = false;
+  state.chartSelection.metric = null;
+  state.chartSelection.startTime = null;
+  state.chartSelection.hoverTime = null;
+  if (shouldRender) scheduleRender();
+}
+
+function startChartSelection(metric, time) {
+  state.chartSelection.active = true;
+  state.chartSelection.metric = metric;
+  state.chartSelection.startTime = time;
+  state.chartSelection.hoverTime = time;
+  els.startTime.value = formatSelectionTime(time);
+  els.endTime.value = '';
+  updateIntervalHint();
+  scheduleRender();
+}
+
+function updateChartSelectionHover(time) {
+  if (!state.chartSelection.active) return;
+  state.chartSelection.hoverTime = time;
+  scheduleRender();
+}
+
+function completeChartSelection(time) {
+  if (!state.chartSelection.active) return;
+  els.endTime.value = formatSelectionTime(time);
+  addInterval();
+}
+
+function getWaveformMetricLabel(metric) {
+  return INTERACTIVE_CHARTS.find(item => item.metric === metric)?.label || 'gráfico';
+}
+
+function scheduleRender() {
+  if (render.scheduleTimer) return;
+  render.scheduleTimer = window.requestAnimationFrame(() => {
+    render.scheduleTimer = 0;
+    render();
+  });
 }
 
 function updateMetadata() {
@@ -691,13 +829,21 @@ function updateIntervalHint() {
     return;
   }
 
+  if (state.chartSelection.active && Number.isFinite(state.chartSelection.startTime)) {
+    const start = formatSelectionTime(state.chartSelection.startTime);
+    const end = formatSelectionTime(state.chartSelection.hoverTime ?? state.chartSelection.startTime);
+    const label = getWaveformMetricLabel(state.chartSelection.metric);
+    els.intervalHint.textContent = `Seleção ativa em ${label}: ${start} → ${end}. Clique no gráfico para confirmar o final ou pressione Esc para cancelar.`;
+    return;
+  }
+
   if (!state.intervals.length) {
-    els.intervalHint.textContent = 'Sem intervalo: registro completo.';
+    els.intervalHint.textContent = 'Sem intervalo: registro completo. Clique no gráfico ou preencha os campos numéricos.';
     return;
   }
 
   const count = state.intervals.length;
-  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}.`;
+  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}. Clique no gráfico ou use os campos numéricos para adicionar outro.`;
 }
 
 function updateIntervalsList() {
@@ -877,11 +1023,13 @@ function clearIntervalFields(show = true) {
   els.intervalName.value = '';
   els.startTime.value = '';
   els.endTime.value = '';
+  clearChartSelection(false);
   if (show) showToast('Campos de intervalo limpos.');
 }
 
 function clearAllIntervals() {
   state.intervals = [];
+  clearChartSelection(false);
   if (state.data) {
     setActiveStats(calculateFullStats(), 'Registro completo');
   } else {
@@ -1487,17 +1635,7 @@ function buildNBRReportRows() {
 }
 
 function getViewConfig(series, peak) {
-  let viewStart = 0;
-  let viewEnd = state.data?.duration || 1;
-
-  if (state.data && state.intervals.length && els.focusInterval.checked) {
-    const minStart = Math.min(...state.intervals.map(interval => interval.start));
-    const maxEnd = Math.max(...state.intervals.map(interval => interval.end));
-    const span = Math.max(1 / state.data.sampleRate, maxEnd - minStart);
-    const pad = Math.max(span * 0.08, 0.25);
-    viewStart = Math.max(0, minStart - pad);
-    viewEnd = Math.min(state.data.duration, maxEnd + pad);
-  }
+  const { viewStart, viewEnd } = getWaveformViewRange();
 
   return {
     viewStart,
@@ -1510,7 +1648,7 @@ function getViewConfig(series, peak) {
 
 function drawChart(canvas, cfg) {
   const { ctx, width, height } = setupCanvas(canvas);
-  const margin = { left: 66, right: 18, top: 46, bottom: 42 };
+  const margin = WAVEFORM_MARGIN;
   const plotW = Math.max(1, width - margin.left - margin.right);
   const plotH = Math.max(1, height - margin.top - margin.bottom);
 
@@ -1551,6 +1689,8 @@ function drawChart(canvas, cfg) {
   if (peak && peak.time >= viewStart && peak.time <= viewEnd) {
     drawPeakMarker(ctx, peak, xScale, yScale, margin, plotH);
   }
+
+  drawSelectionOverlay(ctx, width, height, margin, viewStart, viewEnd, xScale, plotH);
 
   ctx.restore();
 
@@ -1693,6 +1833,59 @@ function drawPeakMarker(ctx, peak, xScale, yScale, margin, plotH) {
   ctx.restore();
 }
 
+function drawSelectionOverlay(ctx, width, height, margin, viewStart, viewEnd, xScale, plotH) {
+  if (!state.chartSelection.active || state.exporting) return;
+
+  const startTime = state.chartSelection.startTime;
+  const hoverTime = Number.isFinite(state.chartSelection.hoverTime)
+    ? state.chartSelection.hoverTime
+    : startTime;
+
+  if (!Number.isFinite(startTime) || !Number.isFinite(hoverTime)) return;
+
+  const leftTime = Math.min(startTime, hoverTime);
+  const rightTime = Math.max(startTime, hoverTime);
+  const plotRight = width - margin.right;
+  const left = Math.max(margin.left, Math.min(plotRight, xScale(leftTime)));
+  const right = Math.max(margin.left, Math.min(plotRight, xScale(rightTime)));
+
+  ctx.save();
+  ctx.fillStyle = hexToRgba(colors.peak, 0.07);
+  if (right > left) ctx.fillRect(left, margin.top, right - left, plotH);
+
+  ctx.strokeStyle = colors.peak;
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([5, 5]);
+  [startTime, hoverTime].forEach(time => {
+    if (time < viewStart || time > viewEnd) return;
+    const x = xScale(time);
+    ctx.beginPath();
+    ctx.moveTo(x, margin.top);
+    ctx.lineTo(x, margin.top + plotH);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  const label = `${fmtTime(leftTime)} → ${fmtTime(rightTime)}`;
+  ctx.font = '700 10px Inter, system-ui, sans-serif';
+  const labelWidth = ctx.measureText(label).width + 14;
+  const labelX = Math.max(margin.left + 6, Math.min(plotRight - labelWidth - 6, left + 6));
+  const labelY = margin.top + 8;
+
+  ctx.fillStyle = '#ffffff';
+  roundRect(ctx, labelX, labelY, labelWidth, 18, 9);
+  ctx.fill();
+  ctx.strokeStyle = hexToRgba(colors.peak, 0.35);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = colors.peak;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, labelX + 7, labelY + 9);
+  ctx.restore();
+}
+
 function drawWaveformSeries(ctx, arr, time, i0, i1, xScale, yScale, color, plotWidth) {
   const total = i1 - i0 + 1;
   const samplesPerPixel = total / Math.max(1, plotWidth);
@@ -1772,6 +1965,53 @@ function render() {
   renderNBRCharts();
 }
 
+function cancelChartSelection() {
+  if (!state.chartSelection.active) return;
+  clearChartSelection(false);
+  updateIntervalHint();
+  scheduleRender();
+  showToast('Seleção de intervalo cancelada.');
+}
+
+function bindInteractiveWaveformCharts() {
+  INTERACTIVE_CHARTS.forEach(def => {
+    const canvas = def.canvas();
+    if (!canvas) return;
+
+    const wrap = canvas.parentElement;
+    if (wrap?.classList?.add) wrap.classList.add('interactive');
+    canvas.dataset.metric = def.metric;
+    canvas.title = `Clique para marcar intervalos em ${def.label}`;
+
+    canvas.addEventListener('click', event => {
+      if (!state.data) return;
+      const time = getWaveformTimeFromPointer(canvas, event);
+      if (!Number.isFinite(time)) return;
+
+      if (!state.chartSelection.active) {
+        startChartSelection(def.metric, time);
+        return;
+      }
+
+      completeChartSelection(time);
+    });
+
+    canvas.addEventListener('pointermove', event => {
+      if (!state.chartSelection.active) return;
+      const time = getWaveformTimeFromPointer(canvas, event);
+      if (!Number.isFinite(time)) return;
+      updateChartSelectionHover(time);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (!state.chartSelection.active || !Number.isFinite(state.chartSelection.startTime)) return;
+      state.chartSelection.hoverTime = state.chartSelection.startTime;
+      updateIntervalHint();
+      scheduleRender();
+    });
+  });
+}
+
 async function loadTextAsCSV(text, fileName) {
   els.statusPill.textContent = 'Processando arquivo...';
 
@@ -1782,6 +2022,7 @@ async function loadTextAsCSV(text, fileName) {
   state.metadata = parsed.metadata;
   state.data = parsed;
   state.intervals = [];
+  clearChartSelection(false);
   state.activeStats = calculateFullStats();
   state.activeLabel = 'Registro completo';
 
@@ -1898,16 +2139,25 @@ function buildReportHTML() {
     ['Eventos DRB', state.fireHistory?.entries?.length ? state.fireHistory.entries.length.toLocaleString('pt-BR') : '0']
   ];
 
-  renderNBRCharts();
+  const previousExporting = state.exporting;
+  state.exporting = true;
 
-  const chartImages = {
-    mic: els.micChart.toDataURL('image/png'),
-    tran: els.tranChart.toDataURL('image/png'),
-    vert: els.vertChart.toDataURL('image/png'),
-    long: els.longChart.toDataURL('image/png'),
-    nbrPressure: els.nbrPressureChart?.toDataURL('image/png') || '',
-    nbrVibration: els.nbrVibrationChart?.toDataURL('image/png') || ''
-  };
+  let chartImages;
+  try {
+    render();
+
+    chartImages = {
+      mic: els.micChart.toDataURL('image/png'),
+      tran: els.tranChart.toDataURL('image/png'),
+      vert: els.vertChart.toDataURL('image/png'),
+      long: els.longChart.toDataURL('image/png'),
+      nbrPressure: els.nbrPressureChart?.toDataURL('image/png') || '',
+      nbrVibration: els.nbrVibrationChart?.toDataURL('image/png') || ''
+    };
+  } finally {
+    state.exporting = previousExporting;
+    render();
+  }
 
   const metaTable = metaRows.map(([key, value]) => `
     <tr>
@@ -2086,6 +2336,7 @@ els.clearIntervalBtn.addEventListener('click', () => clearIntervalFields(true));
 els.clearAllIntervalsBtn.addEventListener('click', clearAllIntervals);
 els.clearHistoryBtn.addEventListener('click', () => {
   state.fireHistory = null;
+  clearChartSelection(false);
   if (state.data) {
     state.intervals = state.intervals.filter(interval => interval.source !== 'drb');
     state.activeStats = state.intervals.length ? state.intervals[state.intervals.length - 1].stats : calculateFullStats();
@@ -2163,6 +2414,11 @@ window.addEventListener('resize', () => {
   render.resizeTimer = window.setTimeout(render, 120);
 });
 
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') cancelChartSelection();
+});
+
+bindInteractiveWaveformCharts();
 updateIntervalSummaryTable();
 render();
 updateIntervalHint();
