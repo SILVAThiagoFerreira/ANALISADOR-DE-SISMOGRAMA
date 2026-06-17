@@ -2120,23 +2120,103 @@ function metadataReportRows() {
     ['Duração do registro', `${fmt(state.data.duration, 3)} s`],
     ['Amostras processadas', state.data.data.time.length.toLocaleString('pt-BR')],
     ['Canais analisados', 'Mic/MicL, Tran, Vert, Long'],
-    ['Historial DRB', state.fireHistory?.entries?.length ? `${state.fireHistory.entries.length.toLocaleString('pt-BR')} eventos` : 'Não carregado']
+    ['Histórico DRB', state.fireHistory?.entries?.length ? `${state.fireHistory.entries.length.toLocaleString('pt-BR')} eventos` : 'Não carregado']
   ];
+}
+
+function getReportOverview(rows) {
+  const metadata = state.data?.metadata || {};
+  const location = getMetadataValue(metadata, 'TitleString1') || getMetadataValue(metadata, 'Location') || '--';
+  const client = getMetadataValue(metadata, 'TitleString2') || '--';
+  const eventDateTime = `${getMetadataValue(metadata, 'EventDate') || '--'} ${getMetadataValue(metadata, 'EventTime') || ''}`.trim();
+  const serial = getMetadataValue(metadata, 'SerialNumber') || '--';
+  const distance = getDistanceMeters();
+  const nbrRows = getNBRComplianceRows();
+
+  const highestPressureInterval = rows.reduce((best, interval) => {
+    const currentValue = interval.stats?.mic?.abs ?? -Infinity;
+    const bestValue = best?.stats?.mic?.abs ?? -Infinity;
+    return currentValue > bestValue ? interval : best;
+  }, null);
+
+  const highestPVSInterval = rows.reduce((best, interval) => {
+    const currentValue = interval.stats?.pvs?.value ?? -Infinity;
+    const bestValue = best?.stats?.pvs?.value ?? -Infinity;
+    return currentValue > bestValue ? interval : best;
+  }, null);
+
+  let totalChecks = 0;
+  let exceededChecks = 0;
+  const flaggedIntervals = new Set();
+
+  nbrRows.forEach(row => {
+    const pressureChecks = [row.pressureCompliant, ...row.channels.map(channel => channel.compliant)];
+    pressureChecks.forEach(check => {
+      if (check === null) return;
+      totalChecks += 1;
+      if (check === false) {
+        exceededChecks += 1;
+        flaggedIntervals.add(row.interval.name);
+      }
+    });
+  });
+
+  const highestPressureDb = paToDb(highestPressureInterval?.stats?.mic?.abs ?? NaN);
+  const complianceLabel = exceededChecks
+    ? `${exceededChecks} ${exceededChecks > 1 ? 'verificações' : 'verificação'} acima do limite`
+    : totalChecks
+      ? 'Verificações abaixo do limite'
+      : 'Verificações pendentes';
+
+  const complianceTone = exceededChecks ? 'alert' : totalChecks ? 'ok' : 'muted';
+
+  const executiveNotes = [
+    highestPressureInterval
+      ? `Maior pressão acústica no intervalo ${highestPressureInterval.name}: ${fmt(highestPressureInterval.stats.mic.abs, 3)} Pa (${fmt(highestPressureDb, 1)} dB(L)).`
+      : 'Maior pressão acústica indisponível.',
+    highestPVSInterval
+      ? `Maior PVS no intervalo ${highestPVSInterval.name}: ${fmt(highestPVSInterval.stats.pvs.value, 3)} mm/s, com pico em ${fmtTime(highestPVSInterval.stats.pvs.time)}.`
+      : 'Maior PVS indisponível.',
+    totalChecks
+      ? exceededChecks
+        ? `Na leitura normativa da ABNT NBR 9653:2018, ${flaggedIntervals.size.toLocaleString('pt-BR')} intervalo${flaggedIntervals.size > 1 ? 's apresentaram' : ' apresentou'} ao menos um ponto acima do limite.`
+        : 'Na leitura normativa da ABNT NBR 9653:2018, todas as verificações calculadas permaneceram abaixo dos limites aplicáveis.'
+      : 'A leitura normativa depende da distância do ponto e dos dados de frequência disponíveis no registro.'
+  ];
+
+  return {
+    location,
+    client,
+    eventDateTime,
+    serial,
+    distanceLabel: Number.isFinite(distance) ? `${fmt(distance, 1)} m` : 'Não identificada',
+    intervalsLabel: rows.length.toLocaleString('pt-BR'),
+    sampleCountLabel: state.data?.data?.time?.length.toLocaleString('pt-BR') || '--',
+    drbLabel: state.fireHistory?.entries?.length ? state.fireHistory.entries.length.toLocaleString('pt-BR') : '0',
+    highestPressureInterval,
+    highestPVSInterval,
+    highestPressureDb,
+    totalChecks,
+    exceededChecks,
+    complianceLabel,
+    complianceTone,
+    executiveNotes
+  };
 }
 
 function buildReportHTML() {
   if (!state.data) return '';
 
   const rows = reportRows();
-  const generatedAt = new Date().toLocaleString('pt-BR');
   const metaRows = metadataReportRows();
-
+  const overview = getReportOverview(rows);
   const cards = [
-    ['Arquivo', state.data.fileName],
-    ['Intervalos analisados', rows.length.toLocaleString('pt-BR')],
-    ['Amostragem', `${fmt(state.data.sampleRate, 0)} sps`],
-    ['Duração', `${fmt(state.data.duration, 3)} s`],
-    ['Eventos DRB', state.fireHistory?.entries?.length ? state.fireHistory.entries.length.toLocaleString('pt-BR') : '0']
+    ['Local monitorado', overview.location],
+    ['Evento', overview.eventDateTime],
+    ['Distância escalada', overview.distanceLabel],
+    ['Intervalos avaliados', overview.intervalsLabel],
+    ['Taxa de amostragem', `${fmt(state.data.sampleRate, 0)} sps`],
+    ['Duração do registro', `${fmt(state.data.duration, 3)} s`]
   ];
 
   const previousExporting = state.exporting;
@@ -2176,7 +2256,7 @@ function buildReportHTML() {
         <td><span class="report-color" style="background:${interval.color}"></span>${escapeHtml(interval.name)}</td>
         <td>${fmtTime(interval.start)}</td>
         <td>${fmtTime(interval.end)}</td>
-        <td>${fmt(s.mic.abs, 3)} Pa<br>${fmt(micDb, 1)} dB</td>
+        <td>${fmt(s.mic.abs, 3)} Pa<br>${fmt(micDb, 1)} dB(L)</td>
         <td>${fmt(s.tran.abs, 3)} mm/s<br><span>${fmtTime(s.tran.time)}</span></td>
         <td>${fmt(s.vert.abs, 3)} mm/s<br><span>${fmtTime(s.vert.time)}</span></td>
         <td>${fmt(s.long.abs, 3)} mm/s<br><span>${fmtTime(s.long.time)}</span></td>
@@ -2185,15 +2265,42 @@ function buildReportHTML() {
     `;
   }).join('');
 
+  const executiveNotes = overview.executiveNotes.map(note => `
+    <li>${escapeHtml(note)}</li>
+  `).join('');
+
   return `
     <div class="report-page report-cover">
-      <img class="report-logo" src="VISUAL/LOGO OPENBLAST TRANSPARENTE.png" alt="OpenBlast" />
-      <p class="report-kicker">Relatório técnico de waveform</p>
-      <h1 class="report-title">Analisador de Sismograma - Waveform</h1>
-      <p class="report-subtitle">
-        Relatório consolidado dos picos de pressão acústica e vibração por intervalo selecionado.
-        A pressão acústica é apresentada em Pa e dB. As vibrações são apresentadas em mm/s para Tran, Vert e Long.
-      </p>
+      <div class="report-cover-top">
+        <img class="report-logo" src="VISUAL/LOGO OPENBLAST TRANSPARENTE.png" alt="OpenBlast" />
+        <div class="report-docline">
+          <div>
+            <span>Documento</span>
+            <strong>Relatório técnico</strong>
+          </div>
+          <div>
+            <span>Evento</span>
+            <strong>${escapeHtml(overview.eventDateTime || '--')}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-hero">
+        <div class="report-hero-copy">
+          <p class="report-kicker">Análise técnica de sismograma</p>
+          <h1 class="report-title">Pressão acústica e vibração por evento monitorado</h1>
+          <p class="report-subtitle">
+            Síntese executiva do registro importado, com leitura consolidada de picos, comparação entre intervalos
+            e verificação normativa frente à ABNT NBR 9653:2018.
+          </p>
+        </div>
+
+        <div class="report-status-card ${overview.complianceTone}">
+          <span>Situação normativa</span>
+          <strong>${escapeHtml(overview.complianceLabel)}</strong>
+          <small>${escapeHtml(overview.client)}</small>
+        </div>
+      </div>
 
       <div class="report-grid">
         ${cards.map(([label, value]) => `
@@ -2203,40 +2310,116 @@ function buildReportHTML() {
           </div>
         `).join('')}
       </div>
+
+      <div class="report-insight-grid">
+        <section class="report-panel">
+          <div class="report-panel-heading">
+            <span>Leitura executiva</span>
+            <strong>Principais mensagens</strong>
+          </div>
+          <ul class="report-note-list">
+            ${executiveNotes}
+          </ul>
+        </section>
+
+        <section class="report-panel">
+          <div class="report-panel-heading">
+            <span>Escopo</span>
+            <strong>Base analítica</strong>
+          </div>
+          <div class="report-mini-metrics">
+            <div>
+              <span>Amostras</span>
+              <strong>${escapeHtml(overview.sampleCountLabel)}</strong>
+            </div>
+            <div>
+              <span>Eventos DRB</span>
+              <strong>${escapeHtml(overview.drbLabel)}</strong>
+            </div>
+            <div>
+              <span>Equipamento</span>
+              <strong>${escapeHtml(overview.serial)}</strong>
+            </div>
+            <div>
+              <span>Arquivo</span>
+              <strong>${escapeHtml(state.data.fileName)}</strong>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
 
     <div class="report-page">
-      <h2 class="report-section-title">Metadados do sismograma</h2>
-      <table class="report-table">
-        <tbody>${metaTable}</tbody>
-      </table>
+      <div class="report-columns">
+        <section class="report-panel">
+          <div class="report-panel-heading">
+            <span>Rastreabilidade</span>
+            <strong>Base do registro</strong>
+          </div>
+          <table class="report-table report-table-compact">
+            <tbody>${metaTable}</tbody>
+          </table>
+        </section>
 
-      <h2 class="report-section-title" style="margin-top:12mm">Resumo dos intervalos</h2>
-      <table class="report-table">
-        <thead>
-          <tr>
-            <th>Intervalo</th>
-            <th>Início</th>
-            <th>Final</th>
-            <th>Pressão acústica</th>
-            <th>Tran</th>
-            <th>Vert</th>
-            <th>Long</th>
-            <th>PVS</th>
-          </tr>
-        </thead>
-        <tbody>${intervalRows}</tbody>
-      </table>
+        <section class="report-panel">
+          <div class="report-panel-heading">
+            <span>Leitura consolidada</span>
+            <strong>Indicadores-chave</strong>
+          </div>
+          <div class="report-summary-stack">
+            <div class="report-summary-item">
+              <span>Maior pressão acústica</span>
+              <strong>${fmt(overview.highestPressureInterval?.stats?.mic?.abs ?? NaN, 3)} Pa</strong>
+              <small>${escapeHtml(overview.highestPressureInterval?.name || '--')} · ${fmt(overview.highestPressureDb, 1)} dB(L)</small>
+            </div>
+            <div class="report-summary-item">
+              <span>Maior PVS</span>
+              <strong>${fmt(overview.highestPVSInterval?.stats?.pvs?.value ?? NaN, 3)} mm/s</strong>
+              <small>${escapeHtml(overview.highestPVSInterval?.name || '--')} · ${fmtTime(overview.highestPVSInterval?.stats?.pvs?.time ?? NaN)}</small>
+            </div>
+            <div class="report-summary-item">
+              <span>Checagens normativas</span>
+              <strong>${escapeHtml(String(overview.totalChecks))}</strong>
+              <small>${escapeHtml(overview.complianceLabel)}</small>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="report-panel report-panel-spaced">
+        <div class="report-panel-heading">
+          <span>Resultados</span>
+          <strong>Resumo por intervalo</strong>
+        </div>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Intervalo</th>
+              <th>Início</th>
+              <th>Final</th>
+              <th>Pressão acústica</th>
+              <th>Tran</th>
+              <th>Vert</th>
+              <th>Long</th>
+              <th>PVS</th>
+            </tr>
+          </thead>
+          <tbody>${intervalRows}</tbody>
+        </table>
+      </section>
     </div>
 
     <div class="report-page">
-      <h2 class="report-section-title">Gráficos normativos - ABNT NBR 9653:2018</h2>
+      <div class="report-panel-heading report-section-heading">
+        <span>Conformidade</span>
+        <strong>ABNT NBR 9653:2018</strong>
+      </div>
       <div class="report-nbr-grid">
-        <div class="report-chart">
+        <div class="report-chart report-chart-tight">
           <h3>Pressão Sonora em Eventos Sismográficos</h3>
           <img src="${chartImages.nbrPressure}" alt="Gráfico de pressão sonora ABNT NBR 9653" />
         </div>
-        <div class="report-chart">
+        <div class="report-chart report-chart-tight">
           <h3>Vibração em Eventos Sismográficos</h3>
           <img src="${chartImages.nbrVibration}" alt="Gráfico de vibração ABNT NBR 9653" />
         </div>
@@ -2292,41 +2475,100 @@ function buildReportHTML() {
       </table>
     </div>
 
-    <div class="report-page">
-      <h2 class="report-section-title">Gráficos de waveform</h2>
-      <div class="report-chart">
+    <div class="report-page report-waveform-page">
+      <div class="report-panel-heading report-section-heading">
+        <span>Waveforms</span>
+        <strong>Leitura gráfica de referência</strong>
+      </div>
+      <div class="report-waveform-grid">
+        <div class="report-chart report-chart-tight">
         <h3>Pressão acústica · Pa</h3>
         <img src="${chartImages.mic}" alt="Waveform da pressão acústica" />
-      </div>
-      <div class="report-chart">
+        </div>
+        <div class="report-chart report-chart-tight">
         <h3>Vibração transversal · Tran</h3>
         <img src="${chartImages.tran}" alt="Waveform de vibração transversal" />
-      </div>
-      <div class="report-chart">
+        </div>
+        <div class="report-chart report-chart-tight">
         <h3>Vibração vertical · Vert</h3>
         <img src="${chartImages.vert}" alt="Waveform de vibração vertical" />
-      </div>
-      <div class="report-chart">
+        </div>
+        <div class="report-chart report-chart-tight">
         <h3>Vibração longitudinal · Long</h3>
         <img src="${chartImages.long}" alt="Waveform de vibração longitudinal" />
+        </div>
       </div>
     </div>
 
-    <div class="report-footer">
-      <span>Analisador de Sismograma - Waveform</span>
-      <span>Gerado em ${escapeHtml(generatedAt)}</span>
-    </div>
   `;
 }
 
-function exportReportPDF() {
+function buildPdfFileName() {
+  const rawName = state.data?.fileName || 'relatorio-sismograma';
+  const base = rawName.replace(/\.[^.]+$/, '');
+  const safe = base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+  return `${safe || 'relatorio-sismograma'}.pdf`;
+}
+
+async function exportReportPDF() {
   if (!state.data) {
     showToast('Importe um arquivo antes de exportar o relatório.');
     return;
   }
 
+  if (!window.html2canvas || !window.jspdf?.jsPDF) {
+    showToast('Biblioteca de exportação PDF não carregada.');
+    return;
+  }
+
+  const previousLabel = els.exportPdfBtn.textContent;
+  els.exportPdfBtn.disabled = true;
+  els.exportPdfBtn.textContent = 'Gerando PDF...';
   els.printReport.innerHTML = buildReportHTML();
-  window.setTimeout(() => window.print(), 80);
+  els.printReport.classList.add('pdf-render-active');
+
+  try {
+    await new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+
+    const reportPages = Array.from(els.printReport.querySelectorAll('.report-page'));
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+
+    for (let index = 0; index < reportPages.length; index++) {
+      const pageNode = reportPages[index];
+      const canvas = await window.html2canvas(pageNode, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+
+      const image = canvas.toDataURL('image/jpeg', 0.98);
+      if (index > 0) pdf.addPage('a4', 'portrait');
+      pdf.addImage(image, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+    }
+
+    pdf.save(buildPdfFileName());
+    showToast('PDF gerado com sucesso.');
+  } catch (error) {
+    console.error(error);
+    showToast('Falha ao gerar o PDF.');
+  } finally {
+    els.printReport.classList.remove('pdf-render-active');
+    els.printReport.innerHTML = '';
+    els.exportPdfBtn.disabled = false;
+    els.exportPdfBtn.textContent = previousLabel;
+  }
 }
 
 els.fileInput.addEventListener('change', event => readFile(event.target.files[0]));
