@@ -1634,6 +1634,92 @@ function buildNBRReportRows() {
   }).join('');
 }
 
+function renderCanvasDataURL(width, height, renderFn) {
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.left = '-10000px';
+  host.style.top = '0';
+  host.style.width = `${width}px`;
+  host.style.height = `${height}px`;
+  host.style.pointerEvents = 'none';
+  host.style.opacity = '0';
+
+  const canvas = document.createElement('canvas');
+  canvas.style.display = 'block';
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  host.append(canvas);
+  document.body.append(host);
+
+  try {
+    renderFn(canvas);
+    return canvas.toDataURL('image/png');
+  } finally {
+    host.remove();
+  }
+}
+
+function buildWaveformExportConfig(metric) {
+  const exportMargin = { left: 54, right: 16, top: 28, bottom: 34 };
+
+  if (metric === 'mic') {
+    return {
+      yLabel: 'Pressão acústica (Pa)',
+      metric: 'mic',
+      margin: exportMargin,
+      ...getViewConfig(
+        [{ data: state.data?.data.mic, color: colors.mic }],
+        null
+      )
+    };
+  }
+
+  if (metric === 'tran') {
+    return {
+      yLabel: 'Tran (mm/s)',
+      metric: 'tran',
+      margin: exportMargin,
+      ...getViewConfig(
+        [{ data: state.data?.data.tran, color: colors.tran }],
+        null
+      )
+    };
+  }
+
+  if (metric === 'vert') {
+    return {
+      yLabel: 'Vert (mm/s)',
+      metric: 'vert',
+      margin: exportMargin,
+      ...getViewConfig(
+        [{ data: state.data?.data.vert, color: colors.vert }],
+        null
+      )
+    };
+  }
+
+  return {
+    yLabel: 'Long (mm/s)',
+    metric: 'long',
+    margin: exportMargin,
+    ...getViewConfig(
+      [{ data: state.data?.data.long, color: colors.long }],
+      null
+    )
+  };
+}
+
+function buildReportChartImages() {
+  return {
+    mic: renderCanvasDataURL(1280, 620, canvas => drawChart(canvas, buildWaveformExportConfig('mic'))),
+    tran: renderCanvasDataURL(1280, 620, canvas => drawChart(canvas, buildWaveformExportConfig('tran'))),
+    vert: renderCanvasDataURL(1280, 620, canvas => drawChart(canvas, buildWaveformExportConfig('vert'))),
+    long: renderCanvasDataURL(1280, 620, canvas => drawChart(canvas, buildWaveformExportConfig('long'))),
+    nbrPressure: renderCanvasDataURL(1180, 760, canvas => drawNBRPressureChart(canvas)),
+    nbrVibration: renderCanvasDataURL(1180, 760, canvas => drawNBRVibrationChart(canvas))
+  };
+}
+
 function getViewConfig(series, peak) {
   const { viewStart, viewEnd } = getWaveformViewRange();
 
@@ -1648,7 +1734,7 @@ function getViewConfig(series, peak) {
 
 function drawChart(canvas, cfg) {
   const { ctx, width, height } = setupCanvas(canvas);
-  const margin = WAVEFORM_MARGIN;
+  const margin = cfg.margin || WAVEFORM_MARGIN;
   const plotW = Math.max(1, width - margin.left - margin.right);
   const plotH = Math.max(1, height - margin.top - margin.bottom);
 
@@ -2225,15 +2311,7 @@ function buildReportHTML() {
   let chartImages;
   try {
     render();
-
-    chartImages = {
-      mic: els.micChart.toDataURL('image/png'),
-      tran: els.tranChart.toDataURL('image/png'),
-      vert: els.vertChart.toDataURL('image/png'),
-      long: els.longChart.toDataURL('image/png'),
-      nbrPressure: els.nbrPressureChart?.toDataURL('image/png') || '',
-      nbrVibration: els.nbrVibrationChart?.toDataURL('image/png') || ''
-    };
+    chartImages = buildReportChartImages();
   } finally {
     state.exporting = previousExporting;
     render();
@@ -2481,19 +2559,19 @@ function buildReportHTML() {
         <strong>Leitura gráfica de referência</strong>
       </div>
       <div class="report-waveform-grid">
-        <div class="report-chart report-chart-tight">
+        <div class="report-chart report-waveform-chart">
         <h3>Pressão acústica · Pa</h3>
         <img src="${chartImages.mic}" alt="Waveform da pressão acústica" />
         </div>
-        <div class="report-chart report-chart-tight">
+        <div class="report-chart report-waveform-chart">
         <h3>Vibração transversal · Tran</h3>
         <img src="${chartImages.tran}" alt="Waveform de vibração transversal" />
         </div>
-        <div class="report-chart report-chart-tight">
+        <div class="report-chart report-waveform-chart">
         <h3>Vibração vertical · Vert</h3>
         <img src="${chartImages.vert}" alt="Waveform de vibração vertical" />
         </div>
-        <div class="report-chart report-chart-tight">
+        <div class="report-chart report-waveform-chart">
         <h3>Vibração longitudinal · Long</h3>
         <img src="${chartImages.long}" alt="Waveform de vibração longitudinal" />
         </div>

@@ -1272,6 +1272,20 @@ canvas {
   object-fit: contain;
 }
 
+.print-report.pdf-render-active .report-waveform-chart {
+  padding: 2.6mm;
+}
+
+.print-report.pdf-render-active .report-waveform-chart h3 {
+  margin-bottom: 1.8mm;
+}
+
+.print-report.pdf-render-active .report-waveform-chart img {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ececec;
+}
+
 .print-report.pdf-render-active .report-nbr-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1365,7 +1379,7 @@ canvas {
 .print-report.pdf-render-active .report-waveform-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4mm;
+  gap: 3.2mm;
 }
 
 .pdf-button:disabled {
