@@ -1,20 +1,22 @@
 :root {
-  --bg: #f4f5f6;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-alt: #f8f8f8;
-  --ink: #111111;
-  --ink-soft: #33383f;
-  --muted: #68707a;
-  --muted-2: #8c949d;
-  --line: #dfe3e7;
-  --line-strong: #c9d0d7;
-  --red: #e30613;
+  --surface-alt: #f5f6f7;
+  --ink: #38424b;
+  --ink-soft: #38424b;
+  --muted: #6c7680;
+  --muted-2: #8b949e;
+  --muted-strong: #8b949e;
+  --line: #e3e6ea;
+  --line-strong: #d2d6db;
+  --red: #e20613;
   --red-dark: #b8000b;
-  --blue: #1f5a95;
-  --green: #3f7d5a;
+  --blue: #1f4ab8;
+  --green: #22c55e;
   --ochre: #8d681d;
-  --shadow: 0 22px 48px rgba(17, 24, 39, .08);
+  --shadow: 0 18px 40px rgba(56, 66, 75, .08);
   --radius: 6px;
+  --focus-ring: 0 0 0 3px rgba(226, 6, 19, 0.5);
 }
 
 * { box-sizing: border-box; }
@@ -27,9 +29,7 @@ body {
 body {
   margin: 0;
   color: var(--ink);
-  background:
-    linear-gradient(90deg, rgba(17, 17, 17, .035) 1px, transparent 1px) 0 0 / 72px 72px,
-    linear-gradient(180deg, #ffffff 0, var(--bg) 420px, var(--bg) 100%);
+  background: var(--bg);
   font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
 }
@@ -85,7 +85,7 @@ p {
 .brand-block span {
   display: block;
   min-width: 0;
-  color: var(--ink-soft);
+  color: var(--ink);
   font-size: 12px;
   font-weight: 750;
   line-height: 1.15;
@@ -133,7 +133,8 @@ p {
   min-height: 34px;
   max-width: 100%;
   padding: 8px 11px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
   font-size: 12px;
@@ -181,7 +182,7 @@ p {
   width: 30px;
   height: 30px;
   border-top: 2px solid var(--red);
-  background: #111111;
+  background: var(--ink);
   color: #ffffff;
   font-size: 10px;
   font-weight: 800;
@@ -204,9 +205,7 @@ p {
   min-height: 136px;
   padding: 18px;
   border: 1px dashed var(--line-strong);
-  background:
-    linear-gradient(135deg, rgba(227, 6, 19, .05), transparent 45%),
-    var(--surface-alt);
+  background: var(--surface-alt);
   cursor: pointer;
   place-items: center;
   text-align: center;
@@ -215,9 +214,7 @@ p {
 
 .drb-dropzone {
   min-height: 122px;
-  background:
-    linear-gradient(135deg, rgba(31, 90, 149, .05), transparent 45%),
-    var(--surface-alt);
+  background: var(--surface-alt);
 }
 
 .dropzone:hover,
@@ -237,7 +234,7 @@ p {
   height: 36px;
   margin-bottom: 10px;
   border-left: 3px solid var(--red);
-  background: #111111;
+  background: var(--ink);
   color: #ffffff;
   font-size: 11px;
   font-weight: 850;
@@ -262,25 +259,46 @@ p {
 .secondary-button,
 .ghost-button,
 .outline-button,
+.pdf-button,
+.remove-interval {
+  border-radius: var(--radius);
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.outline-button,
 .pdf-button {
   min-height: 38px;
-  border-radius: 0;
   cursor: pointer;
   font-weight: 760;
   transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
 }
 
+.primary-button:focus-visible,
+.pdf-button:focus-visible,
+.secondary-button:focus-visible,
+.ghost-button:focus-visible,
+.outline-button:focus-visible,
+.remove-interval:focus-visible,
+.field input:focus-visible,
+.interval-grid input:focus-visible,
+.brand-block:focus-visible {
+  outline: 2px solid rgba(226, 6, 19, 0.5);
+  outline-offset: 1px;
+}
+
 .primary-button,
 .pdf-button {
-  border: 1px solid #111111;
-  background: #111111;
+  border: 1px solid var(--red);
+  background: var(--red);
   color: #ffffff;
 }
 
 .primary-button:hover,
 .pdf-button:hover {
-  border-color: var(--red);
-  background: var(--red);
+  border-color: var(--red-dark);
+  background: var(--red-dark);
 }
 
 .secondary-button,
@@ -294,8 +312,8 @@ p {
 .secondary-button:hover,
 .ghost-button:hover,
 .outline-button:hover {
-  border-color: #111111;
-  background: #f7f7f7;
+  border-color: var(--ink);
+  background: var(--surface-alt);
 }
 
 .secondary-button {
@@ -348,17 +366,18 @@ p {
   min-height: 40px;
   padding: 9px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 0;
+  border-radius: var(--radius);
   outline: none;
   background: #ffffff;
   color: var(--ink);
   font-size: 13px;
+  transition: border-color .16s ease, box-shadow .16s ease;
 }
 
 .field input:focus,
 .interval-grid input:focus {
-  border-color: #111111;
-  box-shadow: inset 3px 0 0 var(--red);
+  border-color: var(--red);
+  box-shadow: var(--focus-ring);
 }
 
 .interval-grid {
@@ -680,9 +699,9 @@ h1 {
 }
 
 .nbr-badge.ok {
-  border-color: rgba(63, 125, 90, .35);
-  background: rgba(63, 125, 90, .08);
-  color: #28553b;
+  border-color: rgba(34, 197, 94, .35);
+  background: rgba(34, 197, 94, .08);
+  color: #166534;
 }
 
 .nbr-badge.alert {
@@ -911,6 +930,15 @@ canvas {
   height: 100%;
 }
 
+.control-panel,
+.summary-panel,
+.chart-card,
+.kpi-grid,
+.nbr-panel,
+.chart-guide {
+  border-radius: var(--radius);
+}
+
 .toast {
   position: fixed;
   right: 22px;
@@ -918,7 +946,7 @@ canvas {
   max-width: min(420px, calc(100vw - 44px));
   padding: 12px 14px;
   border-left: 4px solid var(--red);
-  background: #111111;
+  background: var(--ink);
   color: #ffffff;
   opacity: 0;
   pointer-events: none;
@@ -1383,8 +1411,8 @@ canvas {
 }
 
 .pdf-button:disabled {
-  border-color: #3f3f3f;
-  background: #3f3f3f;
+  border-color: var(--muted-strong);
+  background: var(--muted-strong);
   cursor: progress;
   opacity: .88;
 }

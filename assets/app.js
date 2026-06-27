@@ -45,28 +45,28 @@ const els = {
 };
 
 const colors = {
-  grid: '#ede9e3',
-  axis: '#d9d4cc',
-  text: '#6b7280',
-  ink: '#171717',
-  peak: '#e30613',
-  mic: '#202124',
-  tran: '#365f91',
-  vert: '#4f7f68',
-  long: '#9a6a2f',
-  zero: '#98a2b3',
-  nbrLine: '#30343a',
-  nbrGuide: '#e30613',
-  nbrTran: '#e30613',
-  nbrLong: '#1d4ed8',
-  nbrVert: '#16a34a'
+  grid: '#e3e6ea',
+  axis: '#6c7680',
+  text: '#6c7680',
+  ink: '#38424b',
+  peak: '#e20613',
+  mic: '#38424b',
+  tran: '#e20613',
+  vert: '#22c55e',
+  long: '#1f4ab8',
+  zero: '#8b949e',
+  nbrLine: '#38424b',
+  nbrGuide: '#e20613',
+  nbrTran: '#e20613',
+  nbrLong: '#1f4ab8',
+  nbrVert: '#22c55e'
 };
 
 const intervalPalette = [
-  '#e30613',
-  '#365f91',
-  '#4f7f68',
-  '#9a6a2f',
+  '#e20613',
+  '#1f4ab8',
+  '#22c55e',
+  '#8d681d',
   '#7c3aed',
   '#0f766e',
   '#c2410c',
@@ -915,7 +915,7 @@ function updateIntervalSummaryTable() {
     name: 'Registro completo',
     start: 0,
     end: state.data.duration,
-    color: '#34383d',
+    color: '#38424b',
     stats: state.activeStats || calculateFullStats()
   }];
 
@@ -1201,7 +1201,7 @@ function getNBRIntervals() {
     end: state.data.duration || 0,
     i0: 0,
     i1: state.data.data.time.length - 1,
-    color: '#161616',
+    color: '#38424b',
     stats: state.activeStats || calculateFullStats(),
     source: 'full'
   }];
@@ -2184,7 +2184,7 @@ function reportRows() {
       name: 'Registro completo',
       start: 0,
       end: state.data?.duration || 0,
-      color: '#161616',
+      color: '#38424b',
       stats: full
     };
     return [fake];
