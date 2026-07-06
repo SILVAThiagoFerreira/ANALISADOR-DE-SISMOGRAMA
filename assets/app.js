@@ -2200,7 +2200,6 @@ function metadataReportRows() {
     ['Arquivo', state.data.fileName],
     ['Data e hora do evento', `${getMetadataValue(metadata, 'EventDate') || '--'} ${getMetadataValue(metadata, 'EventTime') || ''}`.trim()],
     ['Local', getMetadataValue(metadata, 'TitleString1') || getMetadataValue(metadata, 'Location') || '--'],
-    ['Cliente', getMetadataValue(metadata, 'TitleString2') || '--'],
     ['Série do equipamento', getMetadataValue(metadata, 'SerialNumber') || '--'],
     ['Taxa de amostragem', `${fmt(state.data.sampleRate, 0)} sps`],
     ['Duração do registro', `${fmt(state.data.duration, 3)} s`],
@@ -2213,7 +2212,6 @@ function metadataReportRows() {
 function getReportOverview(rows) {
   const metadata = state.data?.metadata || {};
   const location = getMetadataValue(metadata, 'TitleString1') || getMetadataValue(metadata, 'Location') || '--';
-  const client = getMetadataValue(metadata, 'TitleString2') || '--';
   const eventDateTime = `${getMetadataValue(metadata, 'EventDate') || '--'} ${getMetadataValue(metadata, 'EventTime') || ''}`.trim();
   const serial = getMetadataValue(metadata, 'SerialNumber') || '--';
   const distance = getDistanceMeters();
@@ -2272,7 +2270,6 @@ function getReportOverview(rows) {
 
   return {
     location,
-    client,
     eventDateTime,
     serial,
     distanceLabel: Number.isFinite(distance) ? `${fmt(distance, 1)} m` : 'Não identificada',
@@ -2376,7 +2373,7 @@ function buildReportHTML() {
         <div class="report-status-card ${overview.complianceTone}">
           <span>Situação normativa</span>
           <strong>${escapeHtml(overview.complianceLabel)}</strong>
-          <small>${escapeHtml(overview.client)}</small>
+          <small>${escapeHtml(overview.location)}</small>
         </div>
       </div>
 
