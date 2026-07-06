@@ -84,7 +84,7 @@ p {
 .brand-block {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
   color: inherit;
   text-decoration: none;
@@ -93,7 +93,7 @@ p {
 .brand-block img {
   display: block;
   width: auto;
-  height: 54px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -1188,7 +1188,7 @@ canvas {
 
 .print-report.pdf-render-active .report-logo {
   width: auto;
-  height: 18mm;
+  height: 12mm;
   object-fit: contain;
 }
 
