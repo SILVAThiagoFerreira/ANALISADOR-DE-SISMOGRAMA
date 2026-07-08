@@ -262,8 +262,17 @@
         </section>
 
         <p class="chart-guide">
-          Clique em qualquer gráfico de waveform para marcar o início e o fim do intervalo. Os campos numéricos continuam disponíveis no painel lateral.
+          Clique em qualquer gráfico de waveform para marcar o início e o fim do intervalo. Use a roda do mouse para dar zoom e arraste o gráfico quando estiver ampliado para navegar pela onda.
         </p>
+
+        <div class="waveform-toolbar" aria-label="Controles de zoom dos waveform">
+          <div class="waveform-toolbar__group">
+            <button class="secondary-button waveform-tool" type="button" id="waveformZoomOutBtn">Zoom -</button>
+            <button class="secondary-button waveform-tool" type="button" id="waveformZoomInBtn">Zoom +</button>
+            <button class="ghost-button waveform-tool" type="button" id="waveformResetBtn">Restaurar visão</button>
+          </div>
+          <p class="waveform-toolbar__state" id="waveformZoomState">Visão completa</p>
+        </div>
 
         <section class="chart-stack" aria-label="Gráficos do waveform">
           <article class="chart-card feature">

@@ -1062,10 +1062,51 @@ h1 {
   cursor: crosshair;
 }
 
+.canvas-wrap.interactive.zoomed canvas {
+  cursor: grab;
+}
+
+.canvas-wrap.interactive.panning canvas {
+  cursor: grabbing;
+}
+
 canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.waveform-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(247, 248, 250, .96));
+  box-shadow: 0 8px 18px rgba(26, 38, 50, .04);
+}
+
+.waveform-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.waveform-tool {
+  min-width: 112px;
+  padding: 0 14px;
+}
+
+.waveform-toolbar__state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: right;
 }
 
 .control-panel,
@@ -1656,6 +1697,24 @@ canvas {
 
   .ghost-button {
     width: 100%;
+  }
+
+  .waveform-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .waveform-toolbar__group {
+    width: 100%;
+  }
+
+  .waveform-tool {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .waveform-toolbar__state {
+    text-align: left;
   }
 
   .chart-title-row {

@@ -27,6 +27,10 @@ const els = {
   nbrStatusSummary: document.getElementById('nbrStatusSummary'),
   nbrPressureChart: document.getElementById('nbrPressureChart'),
   nbrVibrationChart: document.getElementById('nbrVibrationChart'),
+  waveformZoomOutBtn: document.getElementById('waveformZoomOutBtn'),
+  waveformZoomInBtn: document.getElementById('waveformZoomInBtn'),
+  waveformResetBtn: document.getElementById('waveformResetBtn'),
+  waveformZoomState: document.getElementById('waveformZoomState'),
   micPeak: document.getElementById('micPeak'),
   micPeakDetails: document.getElementById('micPeakDetails'),
   tranPeak: document.getElementById('tranPeak'),
@@ -81,6 +85,9 @@ const FIRE_WINDOW = {
 };
 
 const WAVEFORM_MARGIN = { left: 66, right: 18, top: 46, bottom: 42 };
+const WAVEFORM_ZOOM_STEP = 0.82;
+const WAVEFORM_MIN_SPAN_SECONDS = 1 / 1024;
+const waveformInteractions = new WeakMap();
 const INTERACTIVE_CHARTS = [
   {
     metric: 'mic',
@@ -122,6 +129,7 @@ const state = {
     startTime: null,
     hoverTime: null
   },
+  waveformViewport: null,
   exporting: false
 };
 
@@ -662,19 +670,153 @@ function formatSelectionTime(value) {
 }
 
 function getWaveformViewRange() {
+  if (state.waveformViewport) {
+    return {
+      viewStart: state.waveformViewport.start,
+      viewEnd: state.waveformViewport.end
+    };
+  }
+
   let viewStart = 0;
   let viewEnd = state.data?.duration || 1;
 
   if (state.data && state.intervals.length && els.focusInterval.checked) {
     const minStart = Math.min(...state.intervals.map(interval => interval.start));
     const maxEnd = Math.max(...state.intervals.map(interval => interval.end));
-    const span = Math.max(1 / state.data.sampleRate, maxEnd - minStart);
+    const span = Math.max(getWaveformMinSpan(), maxEnd - minStart);
     const pad = Math.max(span * 0.08, 0.25);
     viewStart = Math.max(0, minStart - pad);
     viewEnd = Math.min(state.data.duration, maxEnd + pad);
   }
 
   return { viewStart, viewEnd };
+}
+
+function getWaveformMinSpan() {
+  const sampleRate = Math.max(1, state.data?.sampleRate || 0);
+  return Math.max(1 / sampleRate, WAVEFORM_MIN_SPAN_SECONDS);
+}
+
+function clampWaveformViewport(start, end) {
+  const duration = state.data?.duration;
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+
+  let viewStart = Number(start);
+  let viewEnd = Number(end);
+  if (!Number.isFinite(viewStart) || !Number.isFinite(viewEnd)) return null;
+  if (viewStart > viewEnd) [viewStart, viewEnd] = [viewEnd, viewStart];
+
+  const minSpan = Math.min(duration, getWaveformMinSpan());
+  if (viewEnd - viewStart < minSpan) {
+    const mid = (viewStart + viewEnd) / 2;
+    viewStart = mid - minSpan / 2;
+    viewEnd = mid + minSpan / 2;
+  }
+
+  if (viewStart < 0) {
+    viewEnd -= viewStart;
+    viewStart = 0;
+  }
+
+  if (viewEnd > duration) {
+    viewStart -= viewEnd - duration;
+    viewEnd = duration;
+  }
+
+  if (viewStart < 0) viewStart = 0;
+  if (viewEnd > duration) viewEnd = duration;
+
+  if (viewEnd - viewStart < minSpan) {
+    if (duration <= minSpan) return { start: 0, end: duration };
+    viewStart = Math.max(0, Math.min(duration - minSpan, viewStart));
+    viewEnd = viewStart + minSpan;
+  }
+
+  return { start: viewStart, end: viewEnd };
+}
+
+function syncWaveformViewportUI() {
+  const zoomed = Boolean(state.waveformViewport);
+  const focusMode = !zoomed && Boolean(state.data && state.intervals.length && els.focusInterval.checked);
+  const label = zoomed
+    ? `Zoom manual · ${fmtTime(state.waveformViewport.start)} → ${fmtTime(state.waveformViewport.end)}`
+    : focusMode
+      ? 'Foco automático nos intervalos'
+      : 'Visão completa';
+
+  if (els.waveformZoomState) {
+    els.waveformZoomState.textContent = label;
+  }
+
+  if (els.waveformResetBtn) {
+    els.waveformResetBtn.disabled = !zoomed;
+  }
+
+  INTERACTIVE_CHARTS.forEach(def => {
+    const canvas = def.canvas();
+    if (!canvas) return;
+    const wrap = canvas.parentElement;
+    if (wrap?.classList) {
+      wrap.classList.toggle('zoomed', zoomed);
+      const interaction = waveformInteractions.get(canvas);
+      wrap.classList.toggle('panning', Boolean(interaction?.dragging));
+    }
+    canvas.title = zoomed
+      ? 'Clique para marcar intervalos. Roda do mouse para ampliar ou reduzir. Arraste para mover o zoom.'
+      : 'Clique para marcar intervalos. Roda do mouse para dar zoom. Arraste para mover quando ampliado.';
+  });
+}
+
+function setWaveformViewport(start, end, options = {}) {
+  const next = clampWaveformViewport(start, end);
+  if (!next) return;
+
+  state.waveformViewport = next;
+  syncWaveformViewportUI();
+  updateIntervalHint();
+  scheduleRender();
+
+  if (!options.silent && options.toast) {
+    showToast(options.toast);
+  }
+}
+
+function resetWaveformViewport(options = {}) {
+  if (!state.waveformViewport) {
+    syncWaveformViewportUI();
+    return;
+  }
+
+  state.waveformViewport = null;
+  syncWaveformViewportUI();
+  updateIntervalHint();
+  scheduleRender();
+
+  if (!options.silent) {
+    showToast(options.toast || 'Visão completa restaurada.');
+  }
+}
+
+function zoomWaveformAt(anchorTime, factor, options = {}) {
+  const { viewStart, viewEnd } = getWaveformViewRange();
+  const currentSpan = Math.max(getWaveformMinSpan(), viewEnd - viewStart);
+  const targetSpan = Math.max(getWaveformMinSpan(), Math.min(state.data.duration, currentSpan * factor));
+  const anchor = Number.isFinite(anchorTime) ? anchorTime : (viewStart + viewEnd) / 2;
+
+  let start = anchor - ((anchor - viewStart) / currentSpan) * targetSpan;
+  let end = start + targetSpan;
+
+  const clamped = clampWaveformViewport(start, end);
+  if (!clamped) return;
+
+  setWaveformViewport(clamped.start, clamped.end, options);
+}
+
+function panWaveformBy(deltaSeconds, options = {}) {
+  if (!state.waveformViewport) return;
+  const start = state.waveformViewport.start + deltaSeconds;
+  const end = state.waveformViewport.end + deltaSeconds;
+  setWaveformViewport(start, end, options);
 }
 
 function getWaveformChartBounds(canvas) {
@@ -826,6 +968,7 @@ function setActiveStats(stats, label) {
 function updateIntervalHint() {
   if (!state.data) {
     els.intervalHint.textContent = 'Importe um arquivo para iniciar a análise.';
+    syncWaveformViewportUI();
     return;
   }
 
@@ -834,16 +977,25 @@ function updateIntervalHint() {
     const end = formatSelectionTime(state.chartSelection.hoverTime ?? state.chartSelection.startTime);
     const label = getWaveformMetricLabel(state.chartSelection.metric);
     els.intervalHint.textContent = `Seleção ativa em ${label}: ${start} → ${end}. Clique no gráfico para confirmar o final ou pressione Esc para cancelar.`;
+    syncWaveformViewportUI();
+    return;
+  }
+
+  if (state.waveformViewport) {
+    els.intervalHint.textContent = `Zoom manual ativo de ${fmtTime(state.waveformViewport.start)} a ${fmtTime(state.waveformViewport.end)}. Use a roda do mouse, os botões ou arraste o gráfico para navegar.`;
+    syncWaveformViewportUI();
     return;
   }
 
   if (!state.intervals.length) {
-    els.intervalHint.textContent = 'Sem intervalo: registro completo. Clique no gráfico ou preencha os campos numéricos.';
+    els.intervalHint.textContent = 'Sem intervalo: registro completo. Clique no gráfico, use a roda do mouse para dar zoom ou preencha os campos numéricos.';
+    syncWaveformViewportUI();
     return;
   }
 
   const count = state.intervals.length;
-  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}. Clique no gráfico ou use os campos numéricos para adicionar outro.`;
+  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}. Clique no gráfico, use a roda do mouse para zoom ou use os campos numéricos para adicionar outro.`;
+  syncWaveformViewportUI();
 }
 
 function updateIntervalsList() {
@@ -2012,6 +2164,8 @@ function drawWaveformSeries(ctx, arr, time, i0, i1, xScale, yScale, color, plotW
 }
 
 function render() {
+  syncWaveformViewportUI();
+
   drawChart(els.micChart, {
     yLabel: 'Pressão acústica (Pa)',
     metric: 'mic',
@@ -2059,6 +2213,21 @@ function cancelChartSelection() {
   showToast('Seleção de intervalo cancelada.');
 }
 
+function getWaveformInteraction(canvas) {
+  if (!waveformInteractions.has(canvas)) {
+    waveformInteractions.set(canvas, {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      startViewport: null,
+      dragging: false,
+      suppressClick: false
+    });
+  }
+
+  return waveformInteractions.get(canvas);
+}
+
 function bindInteractiveWaveformCharts() {
   INTERACTIVE_CHARTS.forEach(def => {
     const canvas = def.canvas();
@@ -2067,9 +2236,15 @@ function bindInteractiveWaveformCharts() {
     const wrap = canvas.parentElement;
     if (wrap?.classList?.add) wrap.classList.add('interactive');
     canvas.dataset.metric = def.metric;
-    canvas.title = `Clique para marcar intervalos em ${def.label}`;
+    canvas.title = 'Clique para marcar intervalos. Use a roda do mouse para dar zoom.';
 
     canvas.addEventListener('click', event => {
+      const interaction = getWaveformInteraction(canvas);
+      if (interaction.suppressClick) {
+        interaction.suppressClick = false;
+        return;
+      }
+
       if (!state.data) return;
       const time = getWaveformTimeFromPointer(canvas, event);
       if (!Number.isFinite(time)) return;
@@ -2082,11 +2257,102 @@ function bindInteractiveWaveformCharts() {
       completeChartSelection(time);
     });
 
+    canvas.addEventListener('wheel', event => {
+      if (!state.data) return;
+      const time = getWaveformTimeFromPointer(canvas, event);
+      if (!Number.isFinite(time)) return;
+
+      event.preventDefault();
+      const zoomFactor = event.deltaY < 0 ? WAVEFORM_ZOOM_STEP : 1 / WAVEFORM_ZOOM_STEP;
+      zoomWaveformAt(time, zoomFactor, { silent: true });
+    }, { passive: false });
+
+    canvas.addEventListener('pointerdown', event => {
+      if (!state.data || event.button !== 0 || state.chartSelection.active || !state.waveformViewport) return;
+
+      const interaction = getWaveformInteraction(canvas);
+      interaction.pointerId = event.pointerId;
+      interaction.startX = event.clientX;
+      interaction.startY = event.clientY;
+      interaction.startViewport = { ...state.waveformViewport };
+      interaction.dragging = false;
+      interaction.suppressClick = false;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
     canvas.addEventListener('pointermove', event => {
+      const interaction = getWaveformInteraction(canvas);
+      if (interaction.pointerId === event.pointerId && interaction.startViewport && state.waveformViewport) {
+        const dx = event.clientX - interaction.startX;
+        const dy = event.clientY - interaction.startY;
+        if (!interaction.dragging && Math.hypot(dx, dy) > 4) {
+          interaction.dragging = true;
+          wrap?.classList.add('panning');
+        }
+
+        if (interaction.dragging) {
+          event.preventDefault();
+          const bounds = getWaveformChartBounds(canvas);
+          const span = Math.max(getWaveformMinSpan(), interaction.startViewport.end - interaction.startViewport.start);
+          const deltaSeconds = -(dx / Math.max(1, bounds.plotWidth)) * span;
+          const next = clampWaveformViewport(
+            interaction.startViewport.start + deltaSeconds,
+            interaction.startViewport.end + deltaSeconds
+          );
+
+          if (next) {
+            state.waveformViewport = next;
+            syncWaveformViewportUI();
+            updateIntervalHint();
+            scheduleRender();
+          }
+
+          interaction.suppressClick = true;
+          return;
+        }
+      }
+
       if (!state.chartSelection.active) return;
       const time = getWaveformTimeFromPointer(canvas, event);
       if (!Number.isFinite(time)) return;
       updateChartSelectionHover(time);
+    });
+
+    canvas.addEventListener('pointerup', event => {
+      const interaction = getWaveformInteraction(canvas);
+      if (interaction.pointerId !== event.pointerId) return;
+
+      if (interaction.dragging) {
+        interaction.suppressClick = true;
+      }
+
+      interaction.pointerId = null;
+      interaction.dragging = false;
+      interaction.startViewport = null;
+      wrap?.classList.remove('panning');
+
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
+    });
+
+    canvas.addEventListener('pointercancel', event => {
+      const interaction = getWaveformInteraction(canvas);
+      if (interaction.pointerId !== event.pointerId) return;
+
+      interaction.pointerId = null;
+      interaction.dragging = false;
+      interaction.startViewport = null;
+      interaction.suppressClick = false;
+      wrap?.classList.remove('panning');
+
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
     });
 
     canvas.addEventListener('mouseleave', () => {
@@ -2108,6 +2374,7 @@ async function loadTextAsCSV(text, fileName) {
   state.metadata = parsed.metadata;
   state.data = parsed;
   state.intervals = [];
+  state.waveformViewport = null;
   clearChartSelection(false);
   state.activeStats = calculateFullStats();
   state.activeLabel = 'Registro completo';
@@ -2666,6 +2933,23 @@ els.clearHistoryBtn.addEventListener('click', () => {
   els.statusPill.textContent = 'Historial removido';
   showToast('Historial DRB removido.');
 });
+els.waveformZoomInBtn.addEventListener('click', () => {
+  if (!state.data) return;
+  const { viewStart, viewEnd } = getWaveformViewRange();
+  zoomWaveformAt((viewStart + viewEnd) / 2, WAVEFORM_ZOOM_STEP, {
+    toast: 'Zoom aproximado aplicado.'
+  });
+});
+els.waveformZoomOutBtn.addEventListener('click', () => {
+  if (!state.data) return;
+  const { viewStart, viewEnd } = getWaveformViewRange();
+  zoomWaveformAt((viewStart + viewEnd) / 2, 1 / WAVEFORM_ZOOM_STEP, {
+    toast: 'Zoom afastado.'
+  });
+});
+els.waveformResetBtn.addEventListener('click', () => {
+  resetWaveformViewport({ toast: 'Visão completa restaurada.' });
+});
 els.focusInterval.addEventListener('change', () => {
   updateIntervalHint();
   render();
@@ -2733,6 +3017,10 @@ window.addEventListener('resize', () => {
 
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape') cancelChartSelection();
+  if (event.ctrlKey && event.key === '0') {
+    event.preventDefault();
+    resetWaveformViewport({ silent: false, toast: 'Visão completa restaurada.' });
+  }
 });
 
 bindInteractiveWaveformCharts();
