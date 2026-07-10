@@ -1605,7 +1605,7 @@ function drawNBRVibrationChart(canvas) {
   const rows = getNBRComplianceRows();
   const points = rows.flatMap((row, intervalIndex) => row.channels.map(channel => ({
     ...channel,
-    intervalName: row.interval.name,
+    intervalName: state.exporting ? formatReportIntervalName(row.interval) : row.interval.name,
     intervalIndex
   })));
 
@@ -1761,7 +1761,7 @@ function buildNBRReportRows() {
         : channel.compliant ? 'Conforme' : 'Acima do limite';
       return `
         <tr>
-          <td>${escapeHtml(row.interval.name)}</td>
+          <td>${escapeHtml(formatReportIntervalName(row.interval))}</td>
           <td>${escapeHtml(channel.label)}</td>
           <td>${fmt(channel.freq, 1)} Hz</td>
           <td>${fmt(channel.ppv, 3)} mm/s</td>
@@ -1773,7 +1773,7 @@ function buildNBRReportRows() {
 
     const pressureRow = `
       <tr>
-        <td>${escapeHtml(row.interval.name)}</td>
+        <td>${escapeHtml(formatReportIntervalName(row.interval))}</td>
         <td>Pressão sonora</td>
         <td>${Number.isFinite(row.distance) ? `${fmt(row.distance, 1)} m` : 'Distância ausente'}</td>
         <td>${fmt(row.pressureDb, 1)} dB(L)</td>
@@ -2460,6 +2460,11 @@ function reportRows() {
   return state.intervals;
 }
 
+function formatReportIntervalName(interval) {
+  const name = String(interval?.name || '').trim();
+  return name.replace(/^Produção\s+/i, '') || 'Intervalo sem nome';
+}
+
 function metadataReportRows() {
   if (!state.data) return [];
   const metadata = state.data.metadata;
@@ -2523,10 +2528,10 @@ function getReportOverview(rows) {
 
   const executiveNotes = [
     highestPressureInterval
-      ? `Maior pressão acústica no intervalo ${highestPressureInterval.name}: ${fmt(highestPressureInterval.stats.mic.abs, 3)} Pa (${fmt(highestPressureDb, 1)} dB(L)).`
+      ? `Maior pressão acústica no intervalo ${formatReportIntervalName(highestPressureInterval)}: ${fmt(highestPressureInterval.stats.mic.abs, 3)} Pa (${fmt(highestPressureDb, 1)} dB(L)).`
       : 'Maior pressão acústica indisponível.',
     highestPVSInterval
-      ? `Maior PVS no intervalo ${highestPVSInterval.name}: ${fmt(highestPVSInterval.stats.pvs.value, 3)} mm/s, com pico em ${fmtTime(highestPVSInterval.stats.pvs.time)}.`
+      ? `Maior PVS no intervalo ${formatReportIntervalName(highestPVSInterval)}: ${fmt(highestPVSInterval.stats.pvs.value, 3)} mm/s, com pico em ${fmtTime(highestPVSInterval.stats.pvs.time)}.`
       : 'Maior PVS indisponível.',
     totalChecks
       ? exceededChecks
@@ -2595,7 +2600,7 @@ function buildReportHTML() {
     const micDb = paToDb(s.mic.abs);
     return `
       <tr>
-        <td><span class="report-color" style="background:${interval.color}"></span>${escapeHtml(interval.name)}</td>
+        <td><span class="report-color" style="background:${interval.color}"></span>${escapeHtml(formatReportIntervalName(interval))}</td>
         <td>${fmtTime(interval.start)}</td>
         <td>${fmtTime(interval.end)}</td>
         <td>${fmt(s.mic.abs, 3)} Pa<br>${fmt(micDb, 1)} dB(L)</td>
@@ -2712,12 +2717,12 @@ function buildReportHTML() {
             <div class="report-summary-item">
               <span>Maior pressão acústica</span>
               <strong>${fmt(overview.highestPressureInterval?.stats?.mic?.abs ?? NaN, 3)} Pa</strong>
-              <small>${escapeHtml(overview.highestPressureInterval?.name || '--')} · ${fmt(overview.highestPressureDb, 1)} dB(L)</small>
+              <small>${escapeHtml(overview.highestPressureInterval ? formatReportIntervalName(overview.highestPressureInterval) : '--')} · ${fmt(overview.highestPressureDb, 1)} dB(L)</small>
             </div>
             <div class="report-summary-item">
               <span>Maior PVS</span>
               <strong>${fmt(overview.highestPVSInterval?.stats?.pvs?.value ?? NaN, 3)} mm/s</strong>
-              <small>${escapeHtml(overview.highestPVSInterval?.name || '--')} · ${fmtTime(overview.highestPVSInterval?.stats?.pvs?.time ?? NaN)}</small>
+              <small>${escapeHtml(overview.highestPVSInterval ? formatReportIntervalName(overview.highestPVSInterval) : '--')} · ${fmtTime(overview.highestPVSInterval?.stats?.pvs?.time ?? NaN)}</small>
             </div>
             <div class="report-summary-item">
               <span>Checagens normativas</span>
