@@ -48,6 +48,13 @@ const els = {
   toast: document.getElementById('toast')
 };
 
+function setStatus(text) {
+  if (!els.statusPill) return;
+  els.statusPill.textContent = text;
+  els.statusPill.setAttribute('aria-label', text);
+  els.statusPill.dataset.state = /importado/i.test(text) ? 'ready' : 'busy';
+}
+
 const colors = {
   grid: '#e3e6ea',
   axis: '#6c7680',
@@ -2365,7 +2372,7 @@ function bindInteractiveWaveformCharts() {
 }
 
 async function loadTextAsCSV(text, fileName) {
-  els.statusPill.textContent = 'Processando arquivo...';
+  setStatus('Processando arquivo...');
 
   await new Promise(resolve => setTimeout(resolve, 20));
   const parsed = parseSismogramCSV(text, fileName);
@@ -2381,7 +2388,7 @@ async function loadTextAsCSV(text, fileName) {
 
   updateMetadata();
   updateOverviewCards();
-  els.statusPill.textContent = 'Arquivo importado';
+  setStatus('Arquivo importado');
   showToast('Sismograma importado com sucesso.');
   refreshUI();
 
@@ -2391,13 +2398,13 @@ async function loadTextAsCSV(text, fileName) {
 }
 
 async function loadTextAsHistory(text, fileName) {
-  els.statusPill.textContent = 'Processando historial...';
+  setStatus('Processando historial...');
 
   await new Promise(resolve => setTimeout(resolve, 20));
   const parsed = parseDrbHistory(text, fileName);
 
   state.fireHistory = parsed;
-  els.statusPill.textContent = 'Historial importado';
+  setStatus('Historial importado');
 
   if (!parsed.entries.length) {
     showToast('Historial carregado, mas nenhum evento DRB foi encontrado.');
@@ -2421,7 +2428,7 @@ function readFile(file) {
     try {
       await loadTextAsCSV(event.target.result, file.name);
     } catch (error) {
-      els.statusPill.textContent = 'Erro no arquivo';
+      setStatus('Erro no arquivo');
       showToast(error.message);
     }
   };
@@ -2436,7 +2443,7 @@ function readHistoryFile(file) {
     try {
       await loadTextAsHistory(event.target.result, file.name);
     } catch (error) {
-      els.statusPill.textContent = 'Erro no historial';
+      setStatus('Erro no historial');
       showToast(error.message);
     }
   };
@@ -2935,7 +2942,7 @@ els.clearHistoryBtn.addEventListener('click', () => {
   } else {
     refreshUI();
   }
-  els.statusPill.textContent = 'Historial removido';
+  setStatus('Historial removido');
   showToast('Historial DRB removido.');
 });
 els.waveformZoomInBtn.addEventListener('click', () => {
@@ -3004,13 +3011,13 @@ els.drbDropzone.addEventListener('drop', event => {
 
 els.loadSampleBtn.addEventListener('click', async () => {
   try {
-    els.statusPill.textContent = 'Carregando exemplo...';
+    setStatus('Carregando exemplo...');
     const response = await fetch('sample/20260602-COMUNIDADE-DE-CORREDOR-UM16385.IDFW.CSV');
     if (!response.ok) throw new Error('Não foi possível carregar o exemplo. Rode por um servidor local ou pelo GitHub Pages.');
     const text = await response.text();
     await loadTextAsCSV(text, '20260602-COMUNIDADE-DE-CORREDOR-UM16385.IDFW.CSV');
   } catch (error) {
-    els.statusPill.textContent = 'Aguardando arquivo';
+    setStatus('Aguardando arquivo');
     showToast(error.message);
   }
 });
