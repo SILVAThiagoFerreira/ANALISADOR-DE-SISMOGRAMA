@@ -2566,7 +2566,7 @@ function getReportOverview(rows) {
   };
 }
 
-function buildReportHTML() {
+function buildLegacyReportHTML() {
   if (!state.data) return '';
 
   const rows = reportRows();
@@ -2854,6 +2854,170 @@ function buildReportHTML() {
       </div>
     </div>
 
+  `;
+}
+
+function buildReportHTML() {
+  if (!state.data) return '';
+
+  const rows = reportRows();
+  const overview = getReportOverview(rows);
+  const nbrRows = getNBRComplianceRows();
+  const previousExporting = state.exporting;
+  state.exporting = true;
+
+  let chartImages;
+  try {
+    render();
+    chartImages = buildReportChartImages();
+  } finally {
+    state.exporting = previousExporting;
+    render();
+  }
+
+  const statusMeta = compliant => {
+    if (compliant === true) return { label: 'Conforme', className: 'ok' };
+    if (compliant === false) return { label: 'Acima do limite', className: 'alert' };
+    return { label: 'Pendente', className: 'pending' };
+  };
+
+  const banner = overview.exceededChecks
+    ? { label: 'ATENÇÃO', description: overview.complianceLabel, tone: 'alert' }
+    : overview.totalChecks
+      ? { label: 'CONFORME', description: `${overview.totalChecks}/${overview.totalChecks} verificações abaixo dos limites`, tone: 'ok' }
+      : { label: 'PENDENTE', description: 'Dados insuficientes para concluir a verificação', tone: 'muted' };
+
+  const decisionRows = nbrRows.flatMap(row => {
+    const interval = formatReportIntervalName(row.interval);
+    const records = [
+      {
+        interval,
+        indicator: 'Pressão sonora',
+        measured: `${fmt(row.pressureDb, 1)} dB(L)`,
+        limit: '134,0 dB(L)',
+        compliant: row.pressureCompliant
+      },
+      ...row.channels.map(channel => ({
+        interval,
+        indicator: channel.label,
+        measured: `${fmt(channel.ppv, 3)} mm/s`,
+        limit: `${fmt(channel.limit, 1)} mm/s`,
+        compliant: channel.compliant
+      }))
+    ];
+
+    return records.map(record => {
+      const status = statusMeta(record.compliant);
+      return `
+        <tr>
+          <td>${escapeHtml(record.interval)}</td>
+          <td><strong>${escapeHtml(record.indicator)}</strong></td>
+          <td>${escapeHtml(record.measured)}</td>
+          <td>${escapeHtml(record.limit)}</td>
+          <td><span class="report-status ${status.className}">${escapeHtml(status.label)}</span></td>
+        </tr>
+      `;
+    });
+  }).join('');
+
+  const normativeRows = buildNBRReportRows().replace(/<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>/g,
+    '<td>$2</td><td>$3</td><td>$4</td><td>$5</td><td>$6</td>');
+
+  const eventDate = getMetadataValue(state.data.metadata, 'EventDate') || '--';
+  const eventTime = getMetadataValue(state.data.metadata, 'EventTime') || '--';
+  const serial = getMetadataValue(state.data.metadata, 'SerialNumber') || '--';
+  const sourceFile = state.data.fileName || '--';
+
+  return `
+    <div class="report-page report-executive-page">
+      <header class="report-header">
+        <div class="report-brand">
+          <img src="VISUAL/LOGO OPENBLAST TRANSPARENTE.png" alt="OpenBlast" />
+          <div><span>Monitoramento sismográfico</span><strong>Relatório de evento</strong></div>
+        </div>
+        <div class="report-header-code">ABNT NBR 9653:2018</div>
+      </header>
+
+      <div class="report-title-row">
+        <div>
+          <p class="report-eyebrow">Resumo executivo</p>
+          <h1>${escapeHtml(overview.location)}</h1>
+          <p class="report-subtitle">${escapeHtml(eventDate)} · ${escapeHtml(eventTime)} · Equipamento ${escapeHtml(serial)}</p>
+        </div>
+        <div class="report-distance"><span>Distância monitorada</span><strong>${escapeHtml(overview.distanceLabel)}</strong></div>
+      </div>
+
+      <section class="report-status-banner ${banner.tone}">
+        <div class="report-status-mark">${escapeHtml(banner.label)}</div>
+        <div><strong>${escapeHtml(banner.description)}</strong><span>Resultado da verificação normativa do evento</span></div>
+      </section>
+
+      <section class="report-kpi-grid">
+        <article class="report-kpi">
+          <span>Pressão sonora máxima</span>
+          <strong>${fmt(overview.highestPressureDb, 1)} <small>dB(L)</small></strong>
+          <em>${escapeHtml(overview.highestPressureInterval ? formatReportIntervalName(overview.highestPressureInterval) : '--')}</em>
+        </article>
+        <article class="report-kpi">
+          <span>PVS máximo</span>
+          <strong>${fmt(overview.highestPVSInterval?.stats?.pvs?.value ?? NaN, 3)} <small>mm/s</small></strong>
+          <em>${escapeHtml(overview.highestPVSInterval ? formatReportIntervalName(overview.highestPVSInterval) : '--')}</em>
+        </article>
+        <article class="report-kpi">
+          <span>Intervalos avaliados</span>
+          <strong>${escapeHtml(overview.intervalsLabel)}</strong>
+          <em>Registro analisado</em>
+        </article>
+        <article class="report-kpi">
+          <span>Taxa de amostragem</span>
+          <strong>${fmt(state.data.sampleRate, 0)} <small>sps</small></strong>
+          <em>${fmt(state.data.duration, 3)} s de duração</em>
+        </article>
+      </section>
+
+      <section class="report-decision-panel">
+        <div class="report-section-head"><div><p>Decisão técnica</p><h2>Medido × limite aplicável</h2></div><span>Valores de pico</span></div>
+        <table class="report-table report-decision-table">
+          <thead><tr><th>Intervalo</th><th>Indicador</th><th>Medido</th><th>Limite</th><th>Status</th></tr></thead>
+          <tbody>${decisionRows || '<tr><td colspan="5">Nenhuma verificação calculada.</td></tr>'}</tbody>
+        </table>
+      </section>
+
+      <p class="report-callout ${banner.tone}">${overview.exceededChecks ? 'O evento requer atenção: há pelo menos um indicador acima do limite aplicável.' : overview.totalChecks ? 'Evento conforme à ABNT NBR 9653:2018; todas as verificações calculadas permaneceram abaixo dos limites aplicáveis.' : 'A conclusão normativa depende de dados complementares do registro.'}</p>
+
+      <footer class="report-footer">
+        <span>Arquivo: ${escapeHtml(sourceFile)}</span>
+        <span>Duração: ${fmt(state.data.duration, 3)} s</span>
+        <span>Norma: ABNT NBR 9653:2018</span>
+      </footer>
+    </div>
+
+    <div class="report-page report-technical-page">
+      <header class="report-page-head"><div><p class="report-eyebrow">Verificação normativa</p><h2>Conformidade por evento</h2></div><span>${escapeHtml(overview.complianceLabel)}</span></header>
+      <div class="report-technical-grid">
+        <figure class="report-chart report-technical-card"><figcaption><span>Pressão sonora</span><strong>Pressão × distância</strong></figcaption><img src="${chartImages.nbrPressure}" alt="Gráfico de pressão sonora segundo a ABNT NBR 9653" /></figure>
+        <figure class="report-chart report-technical-card"><figcaption><span>Vibração</span><strong>PPV × frequência</strong></figcaption><img src="${chartImages.nbrVibration}" alt="Gráfico de vibração segundo a ABNT NBR 9653" /></figure>
+      </div>
+      <section class="report-decision-panel report-normative-panel">
+        <div class="report-section-head"><div><p>Rastreabilidade objetiva</p><h2>Leituras utilizadas na decisão</h2></div><span>ABNT NBR 9653:2018</span></div>
+        <table class="report-table report-normative-table">
+          <thead><tr><th>Indicador</th><th>Frequência / distância</th><th>Medido</th><th>Limite</th><th>Status</th></tr></thead>
+          <tbody>${normativeRows || '<tr><td colspan="5">Nenhuma leitura normativa disponível.</td></tr>'}</tbody>
+        </table>
+      </section>
+      <footer class="report-footer"><span>Equipamento: ${escapeHtml(serial)}</span><span>Local: ${escapeHtml(overview.location)}</span><span>Arquivo: ${escapeHtml(sourceFile)}</span></footer>
+    </div>
+
+    <div class="report-page report-waveform-page">
+      <header class="report-page-head"><div><p class="report-eyebrow">Anexo técnico</p><h2>Waveforms do registro</h2></div><span>Leitura gráfica de referência</span></header>
+      <div class="report-waveform-grid report-waveform-grid-compact">
+        <figure class="report-chart report-waveform-chart"><figcaption><span>Canal 01</span><strong>Pressão acústica · Pa</strong></figcaption><img src="${chartImages.mic}" alt="Waveform da pressão acústica" /></figure>
+        <figure class="report-chart report-waveform-chart"><figcaption><span>Canal 02</span><strong>Vibração transversal · Tran</strong></figcaption><img src="${chartImages.tran}" alt="Waveform da vibração transversal" /></figure>
+        <figure class="report-chart report-waveform-chart"><figcaption><span>Canal 03</span><strong>Vibração vertical · Vert</strong></figcaption><img src="${chartImages.vert}" alt="Waveform da vibração vertical" /></figure>
+        <figure class="report-chart report-waveform-chart"><figcaption><span>Canal 04</span><strong>Vibração longitudinal · Long</strong></figcaption><img src="${chartImages.long}" alt="Waveform da vibração longitudinal" /></figure>
+      </div>
+      <footer class="report-footer"><span>Registro completo: ${fmt(state.data.data.time.length, 0)} amostras</span><span>Taxa: ${fmt(state.data.sampleRate, 0)} sps</span><span>Tempo total: ${fmt(state.data.duration, 3)} s</span></footer>
+    </div>
   `;
 }
 

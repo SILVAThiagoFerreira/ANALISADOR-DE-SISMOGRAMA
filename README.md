@@ -26,7 +26,7 @@ Projeto web estático para análise de sismogramas em CSV no padrão **Full Wave
   - Vert no gráfico vertical;
   - Long no gráfico longitudinal.
 - Quando não há intervalo cadastrado, o sistema exibe o registro completo.
-- Exporta um relatório em PDF pelo comando de impressão do navegador, com capa, metadados, tabela e gráficos.
+- Exporta um relatório PDF direto pelo navegador, com resumo executivo, decisão normativa e anexo de waveforms.
 
 ## Como rodar localmente
 
@@ -52,7 +52,13 @@ http://localhost:8000
 3. Clique em **Aplicar**.
 4. Repita o processo para adicionar outros desmontes.
 5. Os valores calculados aparecem dentro dos gráficos, no rótulo colorido de cada intervalo.
-6. Use **Exportar relatório PDF** para gerar o relatório. Na janela de impressão, escolha **Salvar como PDF**.
+6. Use **Exportar PDF** para baixar o relatório.
+
+O PDF é organizado em três páginas objetivas:
+
+- resumo executivo com status, indicadores e tabela medido × limite;
+- gráficos normativos e leituras utilizadas na decisão;
+- anexo técnico com os quatro waveforms do registro.
 
 ## Hospedagem no GitHub Pages
 
