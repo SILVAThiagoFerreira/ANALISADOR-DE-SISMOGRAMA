@@ -947,7 +947,6 @@ function updateOverviewCards() {
   const time = getMetadataValue(metadata, 'EventTime') || '--';
   const serial = getMetadataValue(metadata, 'SerialNumber') || '--';
   const calibration = getMetadataValue(metadata, 'Calibration') || 'Calibração não informada';
-  const fileName = state.data.fileName || '--';
   const fireCount = state.fireHistory?.entries?.length || 0;
 
   els.micPeak.textContent = local;
@@ -963,7 +962,7 @@ function updateOverviewCards() {
   els.longPeakDetails.textContent = `${state.data.data.time.length.toLocaleString('pt-BR')} amostras`;
 
   els.pvsPeak.textContent = `${fmt(state.data.duration, 3)} s`;
-  els.pvsPeakDetails.textContent = fireCount ? `${fileName} · ${fireCount} eventos DRB` : fileName;
+  els.pvsPeakDetails.textContent = fireCount ? `${fireCount} eventos DRB` : 'Registro completo';
 }
 
 function setActiveStats(stats, label) {
@@ -974,7 +973,7 @@ function setActiveStats(stats, label) {
 
 function updateIntervalHint() {
   if (!state.data) {
-    els.intervalHint.textContent = 'Importe um arquivo para iniciar a análise.';
+    els.intervalHint.textContent = 'Importe um CSV para começar.';
     syncWaveformViewportUI();
     return;
   }
@@ -983,25 +982,25 @@ function updateIntervalHint() {
     const start = formatSelectionTime(state.chartSelection.startTime);
     const end = formatSelectionTime(state.chartSelection.hoverTime ?? state.chartSelection.startTime);
     const label = getWaveformMetricLabel(state.chartSelection.metric);
-    els.intervalHint.textContent = `Seleção ativa em ${label}: ${start} → ${end}. Clique no gráfico para confirmar o final ou pressione Esc para cancelar.`;
+    els.intervalHint.textContent = `Seleção em ${label}: ${start} → ${end}. Clique para confirmar.`;
     syncWaveformViewportUI();
     return;
   }
 
   if (state.waveformViewport) {
-    els.intervalHint.textContent = `Zoom manual ativo de ${fmtTime(state.waveformViewport.start)} a ${fmtTime(state.waveformViewport.end)}. Use a roda do mouse, os botões ou arraste o gráfico para navegar.`;
+    els.intervalHint.textContent = `Zoom: ${fmtTime(state.waveformViewport.start)} → ${fmtTime(state.waveformViewport.end)}.`;
     syncWaveformViewportUI();
     return;
   }
 
   if (!state.intervals.length) {
-    els.intervalHint.textContent = 'Sem intervalo: registro completo. Clique no gráfico, use a roda do mouse para dar zoom ou preencha os campos numéricos.';
+    els.intervalHint.textContent = 'Registro completo. Clique no gráfico para marcar um intervalo.';
     syncWaveformViewportUI();
     return;
   }
 
   const count = state.intervals.length;
-  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}. Clique no gráfico, use a roda do mouse para zoom ou use os campos numéricos para adicionar outro.`;
+  els.intervalHint.textContent = `${count} intervalo${count > 1 ? 's' : ''} ativo${count > 1 ? 's' : ''}. Clique para adicionar outro.`;
   syncWaveformViewportUI();
 }
 
@@ -1066,7 +1065,7 @@ function updateIntervalSummaryTable() {
   if (!els.intervalSummaryBody) return;
 
   if (!state.data) {
-    els.intervalSummaryBody.innerHTML = '<tr><td colspan="5">Importe um CSV para iniciar a análise.</td></tr>';
+    els.intervalSummaryBody.innerHTML = '<tr><td colspan="5">Importe um CSV para começar.</td></tr>';
     return;
   }
 
