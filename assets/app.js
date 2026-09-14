@@ -67,7 +67,6 @@ const colors = {
   long: '#1f4ab8',
   zero: '#8b949e',
   nbrLine: '#38424b',
-  nbrGuide: '#e20613',
   nbrTran: '#e20613',
   nbrLong: '#1f4ab8',
   nbrVert: '#22c55e'
@@ -1673,37 +1672,6 @@ function drawNBRVibrationChart(canvas) {
     ctx.stroke();
     ctx.fillText(String(value), px, margin.top + plotH + 12);
   });
-
-  ctx.strokeStyle = colors.nbrGuide;
-  ctx.fillStyle = colors.nbrGuide;
-  ctx.setLineDash([7, 6]);
-  ctx.lineWidth = 1.3;
-  [
-    { y: 15, x0: 1, x1: 4 },
-    { y: 20, x0: 1, x1: 15 },
-    { y: 50, x0: 1, x1: 40 },
-    { x: 4, y0: 0, y1: 15 },
-    { x: 15, y0: 0, y1: 20 },
-    { x: 40, y0: 0, y1: 50 }
-  ].forEach(item => {
-    ctx.beginPath();
-    if (item.y !== undefined) {
-      ctx.moveTo(xScale(item.x0), yScale(item.y));
-      ctx.lineTo(xScale(item.x1), yScale(item.y));
-    } else {
-      ctx.moveTo(xScale(item.x), yScale(item.y0));
-      ctx.lineTo(xScale(item.x), yScale(item.y1));
-    }
-    ctx.stroke();
-  });
-  ctx.setLineDash([]);
-  ctx.font = '700 10px Aptos, Segoe UI, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('15', margin.left - 12, yScale(15));
-  ctx.fillText('4', xScale(4), margin.top + plotH + 27);
-  ctx.fillText('15', xScale(15), margin.top + plotH + 27);
-  ctx.fillText('40', xScale(40), margin.top + plotH + 27);
 
   const limitCurve = [
     [4, 15],

@@ -2831,3 +2831,105 @@ h1 {
     margin-left: 0;
   }
 }
+
+/* Flat visual pass: white surfaces, red only for actions and small details. */
+:root {
+  --bg: #ffffff;
+}
+
+body {
+  background: #ffffff;
+}
+
+.openblast-hubbar {
+  border-bottom: 0;
+}
+
+.topbar {
+  background: #ffffff;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.section-title > span {
+  background: var(--ink);
+}
+
+.dropzone {
+  background: var(--surface-alt);
+}
+
+.dropzone:hover,
+.dropzone.dragging {
+  background: #ffffff;
+}
+
+.primary-button,
+.pdf-button {
+  background: var(--red);
+}
+
+.primary-button:hover,
+.pdf-button:hover {
+  background: var(--red-dark);
+}
+
+.secondary-button,
+.ghost-button,
+.outline-button {
+  background: #ffffff;
+}
+
+.hint {
+  background: var(--surface-alt);
+}
+
+.kpi-card,
+.kpi-card.primary,
+.kpi-card:hover {
+  background: #ffffff;
+}
+
+.kpi-card::after {
+  display: none;
+}
+
+.workspace-hero::before {
+  display: none;
+}
+
+.chart-card::before,
+.chart-card.feature::before,
+.summary-panel::before,
+.nbr-panel::before {
+  display: none;
+}
+
+.control-panel,
+.summary-panel,
+.chart-card,
+.kpi-grid,
+.nbr-panel {
+  box-shadow: none;
+}
+
+.canvas-wrap {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.nbr-card .canvas-wrap.nbr-canvas {
+  height: 400px;
+}
+
+@media (max-width: 900px) {
+  .nbr-card .canvas-wrap.nbr-canvas {
+    height: 360px;
+  }
+}
+
+@media (max-width: 560px) {
+  .nbr-card .canvas-wrap.nbr-canvas {
+    height: 300px;
+  }
+}
