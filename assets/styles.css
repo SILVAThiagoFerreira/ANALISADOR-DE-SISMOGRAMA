@@ -910,6 +910,14 @@ h1 {
   gap: 16px;
 }
 
+.chart-stack > .chart-card.waveform-strip {
+  grid-column: 1 / -1;
+}
+
+.chart-stack > .chart-card.waveform-strip .canvas-wrap {
+  height: clamp(210px, 21vw, 270px);
+}
+
 .chart-card {
   padding: 17px 18px 18px;
 }
