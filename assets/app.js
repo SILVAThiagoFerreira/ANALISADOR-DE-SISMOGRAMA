@@ -1647,21 +1647,7 @@ function drawNBRVibrationChart(canvas) {
   }
 
   const majorTicks = [1, 10, 100, 1000];
-  const minorTicks = [];
-  for (const decade of [1, 10, 100]) {
-    for (let m = 2; m <= 9; m++) minorTicks.push(m * decade);
-  }
-
-  ctx.strokeStyle = '#f1f1f1';
-  minorTicks.forEach(value => {
-    const px = xScale(value);
-    ctx.beginPath();
-    ctx.moveTo(px, margin.top);
-    ctx.lineTo(px, margin.top + plotH);
-    ctx.stroke();
-  });
-
-  ctx.strokeStyle = '#8f949a';
+  ctx.strokeStyle = '#ececec';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   majorTicks.forEach(value => {
