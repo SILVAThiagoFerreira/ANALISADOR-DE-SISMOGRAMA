@@ -22,13 +22,13 @@
   --focus-ring: 0 0 0 3px rgba(226, 6, 19, 0.5);
 }
 
-/* Shared OpenBlast identity band */
-.openblast-hubbar { display: grid; width: 100vw; margin-left: calc(50% - 50vw); grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 58px; padding: 9px 32px; color: #fff; background: #263540; border-bottom: 3px solid #ed1c24; }
-.openblast-hubbar__brand { display: inline-flex; align-items: center; gap: 8px; justify-self: start; font-size: 16px; font-weight: 700; }
-.openblast-hubbar__brand img { width: 30px; height: 36px; object-fit: contain; filter: brightness(0) invert(1); }
-.openblast-hubbar__brand strong { color: #ff4b55; }
-.openblast-hubbar__title { justify-self: center; font-size: 16px; font-weight: 700; }
-@media (max-width: 640px) { .openblast-hubbar { grid-template-columns: auto 1fr; padding: 8px 16px; } .openblast-hubbar__brand span { display: none; } .openblast-hubbar__title { justify-self: end; font-size: 13px; } }
+/* Required identity band: Enaex / US Vale Verde (tools only, not hubs) */
+.enaex-band { position: sticky; top: 0; z-index: 60; display: grid; width: 100vw; margin-left: calc(50% - 50vw); grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; min-height: 50px; padding: 0 35px 0 45px; background: #3a434b; border-bottom: 3px solid #E20613; color: #fff; }
+.enaex-band__brand { display: block; justify-self: start; }
+.enaex-band__brand img { display: block; width: 90px; height: auto; }
+.enaex-band__title { margin: 0; justify-self: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; font-weight: 700; line-height: 1.2; color: #fff; }
+.enaex-band__site { justify-self: end; white-space: nowrap; font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: #c4c7cb; }
+@media (max-width: 640px) { .enaex-band { grid-template-columns: auto 1fr; padding: 0 16px; } .enaex-band__brand img { width: 64px; } .enaex-band__title { justify-self: end; font-size: 14px; } .enaex-band__site { display: none; } }
 
 * { box-sizing: border-box; }
 
@@ -2109,26 +2109,6 @@ body {
   background: var(--bg);
 }
 
-.openblast-hubbar {
-  min-height: 50px;
-  padding: 7px 24px;
-  border-bottom-width: 2px;
-}
-
-.openblast-hubbar__brand {
-  gap: 7px;
-  font-size: 14px;
-}
-
-.openblast-hubbar__brand img {
-  width: 25px;
-  height: 29px;
-}
-
-.openblast-hubbar__title {
-  font-size: 14px;
-}
-
 .app-shell {
   width: min(1560px, calc(100% - 32px));
   padding-bottom: 28px;
@@ -2740,20 +2720,6 @@ h1 {
 }
 
 @media (max-width: 560px) {
-  .openblast-hubbar {
-    grid-template-columns: auto 1fr;
-    padding: 7px 14px;
-  }
-
-  .openblast-hubbar__brand span {
-    display: none;
-  }
-
-  .openblast-hubbar__title {
-    justify-self: end;
-    font-size: 12px;
-  }
-
   .topbar {
     grid-template-columns: 1fr auto;
   }
@@ -2834,10 +2800,6 @@ h1 {
 }
 
 @media screen and (max-width: 600px) {
-  .openblast-hubbar {
-    width: 100%;
-    margin-left: 0;
-  }
 }
 
 /* Flat visual pass: white surfaces, red only for actions and small details. */
@@ -2847,10 +2809,6 @@ h1 {
 
 body {
   background: #ffffff;
-}
-
-.openblast-hubbar {
-  border-bottom: 0;
 }
 
 .topbar {
