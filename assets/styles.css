@@ -10,7 +10,7 @@
   --muted-strong: #8a949e;
   --line: #e2e6ea;
   --line-strong: #cfd6dd;
-  --red: #e20613;
+  --red: #b5121b;
   --red-dark: #b8000b;
   --red-soft: rgba(226, 6, 19, .075);
   --blue: #1f4ab8;
@@ -1664,7 +1664,7 @@ canvas {
 
 .print-report.pdf-render-active .report-eyebrow {
   margin: 0 0 2mm;
-  color: #c81824;
+  color: #b5121b;
   font-size: 8px;
   font-weight: 850;
   letter-spacing: .09em;
@@ -1694,7 +1694,7 @@ canvas {
 .print-report.pdf-render-active .report-distance {
   min-width: 42mm;
   padding-left: 4mm;
-  border-left: 1mm solid #c81824;
+  border-left: 1mm solid #b5121b;
 }
 
 .print-report.pdf-render-active .report-distance strong {
@@ -1718,7 +1718,7 @@ canvas {
 }
 
 .print-report.pdf-render-active .report-status-banner.ok { border-left-color: #23805d; background: #f0f8f4; }
-.print-report.pdf-render-active .report-status-banner.alert { border-left-color: #c81824; background: #fff5f5; }
+.print-report.pdf-render-active .report-status-banner.alert { border-left-color: #b5121b; background: #fff5f5; }
 
 .print-report.pdf-render-active .report-status-mark {
   min-width: 28mm;
@@ -1728,7 +1728,7 @@ canvas {
   letter-spacing: .04em;
 }
 
-.print-report.pdf-render-active .report-status-banner.alert .report-status-mark { color: #c81824; }
+.print-report.pdf-render-active .report-status-banner.alert .report-status-mark { color: #b5121b; }
 
 .print-report.pdf-render-active .report-status-banner strong {
   display: block;
@@ -1798,7 +1798,7 @@ canvas {
 .print-report.pdf-render-active .report-section-head p,
 .print-report.pdf-render-active .report-page-head p {
   margin: 0 0 1.2mm;
-  color: #c81824;
+  color: #b5121b;
 }
 
 .print-report.pdf-render-active .report-section-head h2 {
@@ -1864,7 +1864,7 @@ canvas {
 }
 
 .print-report.pdf-render-active .report-callout.ok { border-left-color: #23805d; background: #f0f8f4; }
-.print-report.pdf-render-active .report-callout.alert { border-left-color: #c81824; background: #fff5f5; }
+.print-report.pdf-render-active .report-callout.alert { border-left-color: #b5121b; background: #fff5f5; }
 
 .print-report.pdf-render-active .report-footer {
   display: flex;
@@ -1912,7 +1912,7 @@ canvas {
 .print-report.pdf-render-active .report-chart figcaption span {
   display: block;
   margin-bottom: 1mm;
-  color: #c81824;
+  color: #b5121b;
   font-size: 7px;
   font-weight: 850;
   letter-spacing: .06em;
@@ -2940,4 +2940,124 @@ body {
   .nbr-card .canvas-wrap.nbr-canvas {
     height: 300px;
   }
+}
+
+/* Relatório PDF: fundo branco, sem caixas nem sombras; apenas fios finos.
+   Título em vermelho caixa alta, subtítulo cinza, seções com rótulo cinza e um fio. */
+.print-report.pdf-render-active .report-card,
+.print-report.pdf-render-active .report-panel,
+.print-report.pdf-render-active .report-kpi,
+.print-report.pdf-render-active .report-status-card,
+.print-report.pdf-render-active .report-summary-item,
+.print-report.pdf-render-active .report-mini-metrics div,
+.print-report.pdf-render-active .report-nbr-legend-card,
+.print-report.pdf-render-active .report-decision-panel,
+.print-report.pdf-render-active .report-status-banner,
+.print-report.pdf-render-active .report-chart,
+.print-report.pdf-render-active .report-waveform-chart {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.print-report.pdf-render-active .report-table th,
+.print-report.pdf-render-active .report-table td {
+  border: 0;
+  border-bottom: 1px solid #e3e3e3;
+  background: transparent;
+}
+
+.print-report.pdf-render-active .report-table thead th {
+  border-bottom: 1px solid #8a8f96;
+  font-weight: 700;
+}
+
+.print-report.pdf-render-active .report-eyebrow {
+  display: none;
+}
+
+.print-report.pdf-render-active .report-title-row h1,
+.print-report.pdf-render-active .report-page-head h2 {
+  color: #b5121b;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.print-report.pdf-render-active .report-subtitle {
+  color: #4a4f55;
+}
+
+.print-report.pdf-render-active .report-section-head,
+.print-report.pdf-render-active .report-panel-heading {
+  color: #8a8f96;
+  border-bottom: 1px solid #e3e3e3;
+  padding-bottom: 1.5mm;
+}
+
+/* Redesign v3: menos caixas, fios finos e texto mínimo na tela. */
+.control-panel,
+.summary-panel,
+.chart-card,
+.kpi-grid,
+.nbr-panel {
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.control-section,
+.summary-panel,
+.chart-card,
+.nbr-panel,
+.kpi-grid {
+  border-top: 1px solid #e3e3e3;
+}
+
+.control-section {
+  padding: 16px 0;
+}
+
+.section-title > span {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: #8a8f96;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.kpi-card {
+  border: 0;
+  border-left: 1px solid #e3e3e3;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.kpi-card:first-child {
+  border-left: 0;
+}
+
+.summary-table th {
+  background: transparent;
+  border-bottom: 1px solid #e3e3e3;
+}
+
+.interval-item,
+.empty-list {
+  border: 0;
+  border-bottom: 1px solid #e3e3e3;
+  border-radius: 0;
+  background: transparent;
+}
+
+.hint {
+  border: 0;
+  background: transparent;
+  padding-left: 0;
 }

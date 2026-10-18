@@ -56,20 +56,20 @@ function setStatus(text) {
 }
 
 const colors = {
-  grid: '#e3e6ea',
-  axis: '#6c7680',
-  text: '#6c7680',
-  ink: '#38424b',
-  peak: '#e20613',
-  mic: '#38424b',
-  tran: '#e20613',
-  vert: '#22c55e',
-  long: '#1f4ab8',
-  zero: '#8b949e',
-  nbrLine: '#38424b',
-  nbrTran: '#e20613',
-  nbrLong: '#1f4ab8',
-  nbrVert: '#22c55e'
+  grid: '#e3e3e3',
+  axis: '#8a8f96',
+  text: '#4a4f55',
+  ink: '#3d4148',
+  peak: '#b5121b',
+  mic: '#3d4148',
+  tran: '#b5121b',
+  vert: '#8a8f96',
+  long: '#3d4148',
+  zero: '#8a8f96',
+  nbrLine: '#3d4148',
+  nbrTran: '#b5121b',
+  nbrLong: '#3d4148',
+  nbrVert: '#8a8f96'
 };
 
 const intervalPalette = [
@@ -1500,7 +1500,7 @@ function drawNBRPressureChart(canvas) {
   ctx.fillRect(0, 0, width, height);
 
   ctx.save();
-  ctx.strokeStyle = '#8f949a';
+  ctx.strokeStyle = '#ececec';
   ctx.lineWidth = 1;
   ctx.font = '11px Aptos, Segoe UI, sans-serif';
   ctx.fillStyle = '#6f7378';
@@ -1578,7 +1578,7 @@ function drawNBRPressureChart(canvas) {
     ctx.fillText('Distância não encontrada no campo ScaledDistance do CSV.', margin.left + plotW / 2, margin.top + plotH / 2);
   }
 
-  ctx.strokeStyle = '#8f949a';
+  ctx.strokeStyle = '#e3e3e3';
   ctx.lineWidth = 1;
   ctx.strokeRect(margin.left, margin.top, plotW, plotH);
 
@@ -1630,7 +1630,7 @@ function drawNBRVibrationChart(canvas) {
   ctx.fillRect(0, 0, width, height);
 
   ctx.save();
-  ctx.strokeStyle = '#8f949a';
+  ctx.strokeStyle = '#ececec';
   ctx.lineWidth = 1;
   ctx.font = '11px Aptos, Segoe UI, sans-serif';
   ctx.fillStyle = '#6f7378';
@@ -1652,7 +1652,7 @@ function drawNBRVibrationChart(canvas) {
     for (let m = 2; m <= 9; m++) minorTicks.push(m * decade);
   }
 
-  ctx.strokeStyle = '#c0c3c7';
+  ctx.strokeStyle = '#f1f1f1';
   minorTicks.forEach(value => {
     const px = xScale(value);
     ctx.beginPath();
@@ -1698,7 +1698,7 @@ function drawNBRVibrationChart(canvas) {
     drawNBRPoint(ctx, px, py, point.color, point.shape, 4.5);
   });
 
-  ctx.strokeStyle = '#8f949a';
+  ctx.strokeStyle = '#e3e3e3';
   ctx.lineWidth = 1;
   ctx.strokeRect(margin.left, margin.top, plotW, plotH);
 
@@ -1913,7 +1913,7 @@ function drawChart(canvas, cfg) {
 
 function drawGrid(ctx, width, height, margin, plotW, plotH, viewStart, viewEnd, yMin, yMax, xScale, yScale, yLabel) {
   ctx.save();
-  ctx.strokeStyle = colors.grid;
+  ctx.strokeStyle = "#efefef";
   ctx.lineWidth = 1;
   ctx.font = '11px Inter, system-ui, sans-serif';
   ctx.fillStyle = colors.text;
