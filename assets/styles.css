@@ -3041,6 +3041,50 @@ body:not(.has-record) .drb-settings { border-top: 1px solid #e3e3e3; padding-top
 .source-section .section-title { display: block; }
 .topbar { display: flex; }
 
+/* Painel de resumo: grade plana, sem gradientes, sombras ou destaques decorativos.
+   Hierarquia: rótulo cinza pequeno, valor principal, linha de apoio. */
+.kpi-grid {
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.kpi-card,
+.kpi-card.primary,
+.kpi-card:hover {
+  min-height: 0;
+  padding: 14px 16px 13px;
+  background: #ffffff;
+  box-shadow: none;
+  border-right: 1px solid #e3e3e3;
+}
+
+.kpi-card::after {
+  display: none;
+}
+
+.kpi-card span {
+  margin-bottom: 6px;
+  color: #6b7178;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+.kpi-card strong {
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-card small {
+  color: #6b7178;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
 /* Badge de conformidade: indicador de status (ponto + texto), não um botão. */
 .nbr-badge {
   gap: 8px;
