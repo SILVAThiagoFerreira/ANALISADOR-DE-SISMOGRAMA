@@ -904,7 +904,7 @@ function scheduleRender() {
 }
 
 function updateMetadata() {
-  if (!state.data) return;
+  if (!state.data || !els.metadataList) return;
 
   const metadata = state.data.metadata;
   const rows = [
@@ -972,6 +972,11 @@ function setActiveStats(stats, label) {
 }
 
 function updateIntervalHint() {
+  if (!els.intervalHint) {
+    syncWaveformViewportUI();
+    return;
+  }
+
   if (!state.data) {
     els.intervalHint.textContent = 'Importe um CSV para começar.';
     syncWaveformViewportUI();

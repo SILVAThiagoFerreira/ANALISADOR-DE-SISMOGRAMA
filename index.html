@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Analisador de Sismograma | OpenBlast</title>
   <meta name="description" content="Análise de pressão acústica e vibrações por intervalo." />
-  <link rel="stylesheet" href="assets/styles.css?v=20261118-clean" />
+  <link rel="stylesheet" href="assets/styles.css?v=20261118-clean2" />
   <link rel="icon" href="VISUAL/openblast-favicon-white.svg" type="image/svg+xml" />
 </head>
 <body>
@@ -89,22 +89,11 @@
             <span>Focar nos intervalos</span>
           </label>
 
-          <p class="hint" id="intervalHint">Importe um CSV para começar.</p>
-
           <div class="intervals-list" id="intervalsList">
             <p class="empty-list">Nenhum intervalo adicionado.</p>
           </div>
         </section>
 
-        <details class="control-section metadata-card disclosure">
-          <summary>Detalhes do arquivo</summary>
-          <dl id="metadataList" class="metadata-list">
-            <div><dt>Arquivo</dt><dd>Não carregado</dd></div>
-            <div><dt>Amostragem</dt><dd>--</dd></div>
-            <div><dt>Duração</dt><dd>--</dd></div>
-            <div><dt>Canais</dt><dd>--</dd></div>
-          </dl>
-        </details>
       </aside>
 
       <section class="workspace" aria-label="Área de análise">
@@ -235,13 +224,7 @@
             <button class="secondary-button waveform-tool" type="button" id="waveformZoomInBtn">Zoom +</button>
             <button class="ghost-button waveform-tool" type="button" id="waveformResetBtn">Restaurar zoom</button>
           </div>
-          <p class="waveform-toolbar__state" id="waveformZoomState">Visão completa</p>
         </div>
-
-        <details class="chart-guide">
-          <summary>Como marcar um intervalo</summary>
-          <p>Clique no início e no fim do trecho em qualquer gráfico abaixo. Use a roda do mouse para ampliar e arraste a área ampliada para navegar.</p>
-        </details>
 
         <section class="chart-stack" aria-label="Gráficos de pressão e vibração">
           <article class="chart-card feature">
@@ -304,6 +287,6 @@
   <div class="toast" id="toast" aria-live="polite"></div>
   <script src="assets/vendor/html2canvas.min.js"></script>
   <script src="assets/vendor/jspdf.umd.min.js"></script>
-  <script src="assets/app.js?v=20261118-clean"></script>
+  <script src="assets/app.js?v=20261118-clean2"></script>
 </body>
 </html>
