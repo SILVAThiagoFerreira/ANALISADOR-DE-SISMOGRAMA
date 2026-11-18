@@ -868,6 +868,7 @@ function clearChartSelection(shouldRender = true) {
 }
 
 function startChartSelection(metric, time) {
+  document.getElementById('intervalEditor').open = true;
   state.chartSelection.active = true;
   state.chartSelection.metric = metric;
   state.chartSelection.startTime = time;
@@ -1123,6 +1124,9 @@ function renderChartIntervalTags() {
 }
 
 function refreshUI() {
+  document.body.classList.toggle('has-record', Boolean(state.data));
+  document.body.classList.toggle('has-intervals', state.intervals.length > 0);
+  els.clearHistoryBtn.hidden = !state.fireHistory;
   updateIntervalHint();
   updateIntervalsList();
   updateIntervalSummaryTable();
@@ -2333,6 +2337,7 @@ async function loadTextAsCSV(text, fileName) {
   state.fileName = fileName;
   state.metadata = parsed.metadata;
   state.data = parsed;
+  document.getElementById('intervalEditor').open = false;
   state.intervals = [];
   state.waveformViewport = null;
   clearChartSelection(false);

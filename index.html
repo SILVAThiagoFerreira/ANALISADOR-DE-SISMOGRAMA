@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Analisador de Sismograma | OpenBlast</title>
   <meta name="description" content="Análise de pressão acústica e vibrações por intervalo." />
-  <link rel="stylesheet" href="assets/styles.css?v=20261018-band1" />
+  <link rel="stylesheet" href="assets/styles.css?v=20261118-clean" />
   <link rel="icon" href="VISUAL/openblast-favicon-white.svg" type="image/svg+xml" />
 </head>
 <body>
@@ -17,11 +17,6 @@
     </header>
 
     <header class="topbar">
-      <div class="topbar-center" aria-label="Etapas da análise">
-        <span>Leitura</span>
-        <span>Intervalos</span>
-        <span>Conformidade</span>
-      </div>
       <div class="topbar-actions">
         <span class="status-pill" id="statusPill">Aguardando arquivo</span>
         <button class="pdf-button" type="button" id="exportPdfBtn">Exportar PDF</button>
@@ -32,11 +27,7 @@
       <aside class="control-panel" aria-label="Controles de análise">
         <section class="control-section file-section source-section">
           <div class="section-title">
-            <span>01</span>
-            <div>
-              <h2>Dados</h2>
-              <p>CSV obrigatório · DRB opcional</p>
-            </div>
+            <div><h2>Importar registro</h2></div>
           </div>
 
           <label class="dropzone dropzone--compact" for="csvFile" id="dropzone">
@@ -50,26 +41,24 @@
 
           <button class="secondary-button" type="button" id="loadSampleBtn">Carregar exemplo</button>
 
+          <details class="disclosure drb-settings">
+            <summary>Histórico DRB opcional</summary>
           <label class="dropzone drb-dropzone dropzone--compact" for="drbFile" id="drbDropzone">
             <input type="file" id="drbFile" accept=".txt,text/plain" />
             <span class="drop-icon">TXT</span>
             <span class="drop-copy">
               <strong>Adicionar histórico DRB</strong>
-              <small>Reconhece eventos Fire automaticamente</small>
+              <small>Selecione ou arraste o arquivo TXT</small>
             </span>
           </label>
 
-          <button class="ghost-button source-clear" type="button" id="clearHistoryBtn">Limpar DRB</button>
+          <button class="ghost-button source-clear" type="button" id="clearHistoryBtn" hidden>Limpar DRB</button>
+          </details>
         </section>
 
         <section class="control-section interval-section">
-          <div class="section-title">
-            <span>02</span>
-            <div>
-              <h2>Intervalos</h2>
-              <p>Compare trechos do registro</p>
-            </div>
-          </div>
+          <details class="disclosure" id="intervalEditor">
+            <summary>Adicionar intervalo</summary>
 
           <label class="field full">
             <span>Nome do intervalo</span>
@@ -92,6 +81,7 @@
             <button class="ghost-button" type="button" id="clearIntervalBtn">Limpar</button>
           </div>
 
+          </details>
           <button class="outline-button" type="button" id="clearAllIntervalsBtn">Remover todos</button>
 
           <label class="check-row">
@@ -106,30 +96,21 @@
           </div>
         </section>
 
-        <section class="control-section metadata-card">
-          <div class="section-title">
-            <span>03</span>
-            <div>
-              <h2>Detalhes</h2>
-              <p>Informações do arquivo</p>
-            </div>
-          </div>
-
+        <details class="control-section metadata-card disclosure">
+          <summary>Detalhes do arquivo</summary>
           <dl id="metadataList" class="metadata-list">
             <div><dt>Arquivo</dt><dd>Não carregado</dd></div>
             <div><dt>Amostragem</dt><dd>--</dd></div>
             <div><dt>Duração</dt><dd>--</dd></div>
             <div><dt>Canais</dt><dd>--</dd></div>
           </dl>
-        </section>
+        </details>
       </aside>
 
       <section class="workspace" aria-label="Área de análise">
         <section class="workspace-hero">
           <div>
-            <p class="eyebrow">Leitura do sismograma</p>
             <h1>Pressão e vibração</h1>
-            <p class="workspace-hero__sub">Registro completo, intervalos e limites normativos em uma única leitura.</p>
           </div>
         </section>
 
@@ -164,7 +145,6 @@
         <section class="summary-panel" id="intervalSummarySection">
           <div class="summary-header">
             <div>
-              <p class="eyebrow">Resumo</p>
               <h2>Intervalos analisados</h2>
             </div>
           </div>
@@ -189,8 +169,7 @@
         <section class="nbr-panel" id="nbrPanel" aria-label="Conformidade com a ABNT NBR 9653:2018">
           <div class="summary-header">
             <div>
-              <p class="eyebrow">Conformidade</p>
-              <h2>ABNT NBR 9653:2018</h2>
+              <h2>Conformidade · ABNT NBR 9653:2018</h2>
             </div>
             <span class="nbr-badge" id="nbrStatusSummary">Aguardando arquivo</span>
           </div>
@@ -223,7 +202,6 @@
                 <div>
                   <h3>PPV × frequência</h3>
                 </div>
-                <span>Curva normativa</span>
               </div>
               <div class="canvas-wrap nbr-canvas">
                 <canvas id="nbrVibrationChart"></canvas>
@@ -251,22 +229,24 @@
 
         </section>
 
-        <p class="chart-guide">Selecione um trecho · roda: zoom · arraste: mover.</p>
-
-        <div class="waveform-toolbar" aria-label="Controles de zoom dos waveforms">
+        <div class="waveform-toolbar" aria-label="Controles dos sismogramas">
           <div class="waveform-toolbar__group">
             <button class="secondary-button waveform-tool" type="button" id="waveformZoomOutBtn">Zoom −</button>
             <button class="secondary-button waveform-tool" type="button" id="waveformZoomInBtn">Zoom +</button>
-            <button class="ghost-button waveform-tool" type="button" id="waveformResetBtn">Visão completa</button>
+            <button class="ghost-button waveform-tool" type="button" id="waveformResetBtn">Restaurar zoom</button>
           </div>
           <p class="waveform-toolbar__state" id="waveformZoomState">Visão completa</p>
         </div>
 
-        <section class="chart-stack" aria-label="Gráficos do waveform">
+        <details class="chart-guide">
+          <summary>Como marcar um intervalo</summary>
+          <p>Clique no início e no fim do trecho em qualquer gráfico abaixo. Use a roda do mouse para ampliar e arraste a área ampliada para navegar.</p>
+        </details>
+
+        <section class="chart-stack" aria-label="Gráficos de pressão e vibração">
           <article class="chart-card feature">
             <div class="chart-title-row">
               <div>
-                <p class="eyebrow">Pressão</p>
                 <h3>Pressão acústica</h3>
               </div>
               <span>Mic/MicL · Pa e dB</span>
@@ -280,7 +260,6 @@
           <article class="chart-card waveform-strip">
             <div class="chart-title-row">
               <div>
-                <p class="eyebrow">Vibração · Tran</p>
                 <h3>Transversal</h3>
               </div>
               <span>mm/s</span>
@@ -294,7 +273,6 @@
           <article class="chart-card waveform-strip">
             <div class="chart-title-row">
               <div>
-                <p class="eyebrow">Vibração · Vert</p>
                 <h3>Vertical</h3>
               </div>
               <span>mm/s</span>
@@ -308,7 +286,6 @@
           <article class="chart-card waveform-strip">
             <div class="chart-title-row">
               <div>
-                <p class="eyebrow">Vibração · Long</p>
                 <h3>Longitudinal</h3>
               </div>
               <span>mm/s</span>
@@ -327,6 +304,6 @@
   <div class="toast" id="toast" aria-live="polite"></div>
   <script src="assets/vendor/html2canvas.min.js"></script>
   <script src="assets/vendor/jspdf.umd.min.js"></script>
-  <script src="assets/app.js?v=20261018-declutter2"></script>
+  <script src="assets/app.js?v=20261118-clean"></script>
 </body>
 </html>
