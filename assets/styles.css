@@ -3040,3 +3040,86 @@ body:not(.has-record) .drb-settings { border-top: 1px solid #e3e3e3; padding-top
 #intervalEditor:not([open]) ~ #intervalHint { display: none; }
 .source-section .section-title { display: block; }
 .topbar { display: flex; }
+
+/* Badge de conformidade: indicador de status (ponto + texto), não um botão. */
+.nbr-badge {
+  gap: 8px;
+  min-height: 0;
+  padding: 5px 12px 5px 9px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  background: var(--surface-alt);
+}
+
+.nbr-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.nbr-badge.ok {
+  background: rgba(34, 197, 94, .1);
+  color: #15803d;
+}
+
+.nbr-badge.alert {
+  background: rgba(227, 6, 19, .08);
+  color: var(--red-dark);
+}
+
+/* Tela inicial: sem caixa vazia no topo, zona de importação em destaque. */
+.start-lede {
+  margin: 6px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body:not(.has-record) .topbar {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+body:not(.has-record) .topbar-actions {
+  justify-content: flex-end;
+}
+
+body.has-record .start-lede {
+  display: none;
+}
+
+body:not(.has-record) #dropzone {
+  min-height: 132px;
+  justify-content: center;
+  border: 1.5px dashed #c3c9d0;
+  border-radius: 12px;
+  transition: border-color .2s ease, background .2s ease;
+}
+
+body:not(.has-record) #dropzone:hover,
+body:not(.has-record) #dropzone.dragging {
+  border-color: var(--red);
+  background: #ffffff;
+}
+
+body:not(.has-record) #dropzone .drop-copy strong {
+  font-size: 16px;
+}
+
+body:not(.has-record) #dropzone .drop-copy small {
+  font-size: 13px;
+}
+
+body:not(.has-record) #loadSampleBtn {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 44px;
+  font-weight: 650;
+}
